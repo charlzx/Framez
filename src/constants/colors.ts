@@ -1,0 +1,83 @@
+export const theme = {
+  light: {
+    background: 'hsl(275, 38%, 96%)',
+    foreground: 'hsl(268, 48%, 18%)',
+    card: 'hsl(0, 0%, 100%)',
+    cardForeground: 'hsl(268, 48%, 18%)',
+    popover: 'hsl(0, 0%, 100%)',
+    popoverForeground: 'hsl(268, 48%, 18%)',
+    primary: 'hsl(267, 84%, 62%)',
+    primaryForeground: 'hsl(275, 38%, 96%)',
+    secondary: 'hsl(280, 40%, 92%)',
+    secondaryForeground: 'hsl(268, 48%, 18%)',
+    muted: 'hsl(280, 36%, 90%)',
+    mutedForeground: 'hsl(268, 26%, 45%)',
+    accent: 'hsl(291, 45%, 84%)',
+    accentForeground: 'hsl(268, 48%, 18%)',
+    destructive: 'hsl(0, 84.2%, 60.2%)',
+    destructiveForeground: 'hsl(0, 0%, 98%)',
+    success: 'hsl(152, 55%, 35%)',
+    successForeground: 'hsl(275, 38%, 96%)',
+    warning: 'hsl(38, 92%, 45%)',
+    warningForeground: 'hsl(268, 48%, 18%)',
+    info: 'hsl(220, 88%, 52%)',
+    infoForeground: 'hsl(0, 0%, 100%)',
+    border: 'hsl(275, 30%, 85%)',
+    input: 'hsl(275, 30%, 88%)',
+    ring: 'hsl(267, 84%, 62%)',
+    chart1: 'hsl(267, 84%, 62%)',
+    chart2: 'hsl(291, 45%, 74%)',
+    chart3: 'hsl(280, 50%, 55%)',
+    chart4: 'hsl(260, 40%, 50%)',
+    chart5: 'hsl(305, 45%, 60%)',
+  },
+  dark: {
+    background: 'hsl(266, 40%, 8%)',
+    foreground: 'hsl(280, 45%, 94%)',
+    card: 'hsl(266, 38%, 12%)',
+    cardForeground: 'hsl(280, 45%, 94%)',
+    popover: 'hsl(266, 38%, 12%)',
+    popoverForeground: 'hsl(280, 45%, 94%)',
+    primary: 'hsl(267, 84%, 72%)',
+    primaryForeground: 'hsl(266, 40%, 8%)',
+    secondary: 'hsl(266, 33%, 16%)',
+    secondaryForeground: 'hsl(280, 45%, 94%)',
+    muted: 'hsl(266, 28%, 18%)',
+    mutedForeground: 'hsl(280, 20%, 70%)',
+    accent: 'hsl(291, 45%, 74%)',
+    accentForeground: 'hsl(266, 40%, 8%)',
+    destructive: 'hsl(0, 63%, 31%)',
+    destructiveForeground: 'hsl(0, 0%, 98%)',
+    success: 'hsl(152, 55%, 48%)',
+    successForeground: 'hsl(266, 40%, 8%)',
+    warning: 'hsl(38, 92%, 60%)',
+    warningForeground: 'hsl(266, 40%, 8%)',
+    info: 'hsl(220, 88%, 60%)',
+    infoForeground: 'hsl(266, 40%, 8%)',
+    border: 'hsl(266, 33%, 20%)',
+    input: 'hsl(266, 33%, 18%)',
+    ring: 'hsl(267, 84%, 72%)',
+    chart1: 'hsl(267, 84%, 72%)',
+    chart2: 'hsl(291, 45%, 74%)',
+    chart3: 'hsl(270, 60%, 62%)',
+    chart4: 'hsl(250, 50%, 60%)',
+    chart5: 'hsl(305, 50%, 70%)',
+  },
+};
+
+export const colors = theme.light;
+
+export const animation = {
+  fadeIn: {
+    duration: 300,
+    easing: 'ease-in-out' as const,
+  },
+  slideIn: {
+    duration: 300,
+    easing: 'ease-in-out' as const,
+  },
+};
+
+export type ThemeMode = keyof typeof theme;
+export type ThemeColors = typeof theme.light;
+export type Colors = typeof colors;
