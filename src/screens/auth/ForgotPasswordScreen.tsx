@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSignIn } from '@clerk/clerk-expo';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/colors';
 import { spacing, fontSize, borderRadius } from '../../constants/spacing';
 import { validateEmail, validatePassword } from '../../utils/validation';
@@ -28,6 +29,7 @@ export default function ForgotPasswordScreen({ navigation }: any) {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<Step>(Step.REQUEST);
 
@@ -169,15 +171,27 @@ export default function ForgotPasswordScreen({ navigation }: any) {
 
                 <View style={styles.field}>
                   <Text style={styles.label}>New password</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="At least 8 characters"
-                    placeholderTextColor={colors.mutedForeground}
-                    value={newPassword}
-                    onChangeText={setNewPassword}
-                    secureTextEntry
-                    editable={!loading}
-                  />
+                  <View style={styles.passwordContainer}>
+                    <TextInput
+                      style={styles.passwordInput}
+                      placeholder="At least 8 characters"
+                      placeholderTextColor={colors.mutedForeground}
+                      value={newPassword}
+                      onChangeText={setNewPassword}
+                      secureTextEntry={!showPassword}
+                      editable={!loading}
+                    />
+                    <TouchableOpacity
+                      style={styles.eyeIcon}
+                      onPress={() => setShowPassword(!showPassword)}
+                    >
+                      <Ionicons
+                        name={showPassword ? 'eye-off' : 'eye'}
+                        size={20}
+                        color={colors.mutedForeground}
+                      />
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
                 <TouchableOpacity
@@ -267,6 +281,29 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     color: colors.foreground,
     fontFamily: 'SpaceMono_400Regular',
+  },
+  passwordContainer: {
+    position: 'relative',
+    width: '100%',
+  },
+  passwordInput: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.medium,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    paddingRight: 48,
+    fontSize: fontSize.md,
+    color: colors.foreground,
+    fontFamily: 'SpaceMono_400Regular',
+  },
+  eyeIcon: {
+    position: 'absolute',
+    right: spacing.md,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
   },
   primaryButton: {
     backgroundColor: colors.primary,

@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSignIn, useOAuth } from '@clerk/clerk-expo';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/colors';
 import { spacing, fontSize, borderRadius } from '../../constants/spacing';
 import { validateEmail } from '../../utils/validation';
@@ -26,6 +27,7 @@ export default function LoginScreen({ navigation }: any) {
   const { startOAuthFlow } = useOAuth({ strategy: 'oauth_google' });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleGoogleSignIn = async () => {
@@ -129,15 +131,27 @@ export default function LoginScreen({ navigation }: any) {
 
               <View style={styles.field}>
                 <Text style={styles.label}>Password</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your password"
-                  placeholderTextColor={colors.mutedForeground}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  editable={!loading}
-                />
+                <View style={styles.passwordContainer}>
+                  <TextInput
+                    style={styles.passwordInput}
+                    placeholder="Enter your password"
+                    placeholderTextColor={colors.mutedForeground}
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                    editable={!loading}
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeIcon}
+                    onPress={() => setShowPassword(!showPassword)}
+                  >
+                    <Ionicons
+                      name={showPassword ? 'eye-off' : 'eye'}
+                      size={20}
+                      color={colors.mutedForeground}
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
 
               <View style={styles.forgotRow}>
@@ -275,6 +289,29 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     color: colors.foreground,
     fontFamily: 'SpaceMono_400Regular',
+  },
+  passwordContainer: {
+    position: 'relative',
+    width: '100%',
+  },
+  passwordInput: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.medium,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    paddingRight: 48,
+    fontSize: fontSize.md,
+    color: colors.foreground,
+    fontFamily: 'SpaceMono_400Regular',
+  },
+  eyeIcon: {
+    position: 'absolute',
+    right: spacing.md,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
   },
   primaryButton: {
     backgroundColor: colors.primary,
