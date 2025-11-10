@@ -1,14 +1,16 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { ClerkProvider, SignedIn, SignedOut } from '@clerk/clerk-expo';
 import { ConvexProvider, ConvexReactClient } from 'convex/react';
-import { NavigationContainer } from '@react-navigation/native';
+import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import * as SecureStore from 'expo-secure-store';
 import * as SplashScreen from 'expo-splash-screen';
 import { Text, TextInput } from 'react-native';
 import { useFonts, SpaceMono_400Regular, SpaceMono_700Bold } from '@expo-google-fonts/space-mono';
 import AuthNavigator from './src/navigation/AuthNavigator';
 import AppNavigator from './src/navigation/AppNavigator';
+import { useThemeColors } from './src/hooks/useThemeColors';
+import { useSettingsStore } from './src/store/settingsStore';
 
 const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 const CONVEX_URL = process.env.EXPO_PUBLIC_CONVEX_URL!;
@@ -41,6 +43,25 @@ export default function App() {
     SpaceMono_400Regular,
     SpaceMono_700Bold,
   });
+  const themeMode = useSettingsStore((state) => state.themeMode);
+  const colors = useThemeColors();
+
+  const navigationTheme = useMemo(
+    () => ({
+      ...DefaultTheme,
+      dark: themeMode === 'dark',
+      colors: {
+        ...DefaultTheme.colors,
+        primary: colors.primary,
+        background: colors.background,
+        card: colors.card,
+        text: colors.foreground,
+        border: colors.border,
+        notification: colors.primary,
+      },
+    }),
+    [colors, themeMode]
+  );
 
   useEffect(() => {
     if (!fontsLoaded) {
@@ -72,14 +93,14 @@ export default function App() {
   return (
     <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={tokenCache}>
       <ConvexProvider client={convex}>
-        <NavigationContainer>
+        <NavigationContainer theme={navigationTheme}>
           <SignedIn>
             <AppNavigator />
           </SignedIn>
           <SignedOut>
             <AuthNavigator />
           </SignedOut>
-          <StatusBar style="auto" />
+          <StatusBar style={themeMode === 'dark' ? 'light' : 'dark'} backgroundColor={colors.background} />
         </NavigationContainer>
       </ConvexProvider>
     </ClerkProvider>

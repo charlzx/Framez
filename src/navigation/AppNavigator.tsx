@@ -1,25 +1,28 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import FeedScreen from '../screens/FeedScreen';
-import CreatePostScreen from '../screens/CreatePostScreen';
-import ProfileScreen from '../screens/ProfileScreen';
-import { colors } from '../constants/colors';
+import { useThemeColors } from '../hooks/useThemeColors';
+import HomeStackNavigator from './HomeStack';
+import SearchStackNavigator from './SearchStack';
+import ProfileStackNavigator from './ProfileStack';
 
 export type AppTabParamList = {
-  Feed: undefined;
-  CreatePost: undefined;
+  Home: undefined;
+  Search: undefined;
   Profile: undefined;
 };
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
 
 export default function AppNavigator() {
+  const colors = useThemeColors();
+
   return (
     <Tab.Navigator
       screenOptions={{
+        headerShown: false,
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.mutedForeground,
+        tabBarInactiveTintColor: colors.mutedForeground ?? colors.foreground,
         tabBarStyle: {
           borderTopColor: colors.border,
           borderTopWidth: 1,
@@ -28,47 +31,69 @@ export default function AppNavigator() {
         tabBarLabelStyle: {
           fontFamily: 'SpaceMono_400Regular',
         },
-        headerStyle: {
-          backgroundColor: colors.background,
-          borderBottomColor: colors.border,
-          borderBottomWidth: 1,
-        },
-        headerTitleStyle: {
-          fontFamily: 'SpaceMono_700Bold',
-          color: colors.primary,
-        },
+        tabBarHideOnKeyboard: true,
       }}
     >
       <Tab.Screen
-        name="Feed"
-        component={FeedScreen}
+        name="Home"
+        component={HomeStackNavigator}
         options={{
-          title: 'Framez',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
+          title: 'Home',
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon
+              color={color}
+              size={size}
+              focused={focused}
+              activeName="home"
+              inactiveName="home-outline"
+            />
           ),
         }}
       />
       <Tab.Screen
-        name="CreatePost"
-        component={CreatePostScreen}
+        name="Search"
+        component={SearchStackNavigator}
         options={{
-          title: 'Create Post',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="add-circle" size={size} color={color} />
+          title: 'Search',
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon
+              color={color}
+              size={size}
+              focused={focused}
+              activeName="search"
+              inactiveName="search-outline"
+            />
           ),
         }}
       />
       <Tab.Screen
         name="Profile"
-        component={ProfileScreen}
+        component={ProfileStackNavigator}
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon
+              color={color}
+              size={size}
+              focused={focused}
+              activeName="person"
+              inactiveName="person-outline"
+            />
           ),
         }}
       />
     </Tab.Navigator>
   );
 }
+
+type TabIconProps = {
+  color: string;
+  size: number;
+  focused: boolean;
+  activeName: React.ComponentProps<typeof Ionicons>['name'];
+  inactiveName: React.ComponentProps<typeof Ionicons>['name'];
+};
+
+const TabIcon: React.FC<TabIconProps> = ({ color, size, focused, activeName, inactiveName }) => (
+  <Ionicons name={focused ? activeName : inactiveName} size={size} color={color} />
+);
