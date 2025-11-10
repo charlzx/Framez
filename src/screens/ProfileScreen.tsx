@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useScrollToTop } from '@react-navigation/native';
+import { useMutation } from 'convex/react';
 import { ProfileStackParamList } from '../navigation/ProfileStack';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { useSettingsStore } from '../store/settingsStore';
@@ -12,6 +13,8 @@ import EditProfileModal from '../components/EditProfileModal';
 import PostOptionsModal from '../components/PostOptionsModal';
 import { spacing, fontSize, borderRadius } from '../constants/spacing';
 import { Post } from '../types/post';
+import { api } from '../../convex/_generated/api';
+import type { Id } from '../../convex/_generated/dataModel';
 
 type ProfileScreenProps = NativeStackScreenProps<ProfileStackParamList, 'ProfileMain'>;
 
@@ -40,7 +43,7 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
   const people = useSettingsStore((state) => state.people);
   const hiddenPostIds = useSettingsStore((state) => state.hiddenPostIds);
   const hidePost = useSettingsStore((state) => state.hidePost);
-  const deletePost = useSettingsStore((state) => state.deletePost);
+  const deletePostMutation = useMutation(api.posts.deletePost);
 
   const currentUser = useMemo(
     () => people.find((person) => person._id === currentUserId),
@@ -88,13 +91,20 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            deletePost(postId);
+          onPress: async () => {
+            try {
+              await deletePostMutation({ id: postId as Id<'posts'> });
+            } catch (error) {
+              Alert.alert(
+                'Unable to delete',
+                error instanceof Error ? error.message : 'Please try again.'
+              );
+            }
           },
         },
       ]);
     },
-    [deletePost]
+    [deletePostMutation]
   );
 
   const handleDeleteSelected = useCallback(() => {

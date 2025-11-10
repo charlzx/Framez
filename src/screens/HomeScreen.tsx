@@ -10,7 +10,10 @@ import {
   NativeSyntheticEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useMutation } from 'convex/react';
 import { Ionicons } from '@expo/vector-icons';
+import { api } from '../../convex/_generated/api';
+import type { Id } from '../../convex/_generated/dataModel';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useScrollToTop } from '@react-navigation/native';
 import { HomeStackParamList } from '../navigation/HomeStack';
@@ -38,8 +41,8 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const notifications = useSettingsStore((state) => state.notifications);
   const hiddenPostIds = useSettingsStore((state) => state.hiddenPostIds);
   const hidePost = useSettingsStore((state) => state.hidePost);
-  const deletePost = useSettingsStore((state) => state.deletePost);
   const currentUserId = useSettingsStore((state) => state.currentUserId);
+  const deletePostMutation = useMutation(api.posts.deletePost);
 
   const [activeTab, setActiveTab] = useState<'forYou' | 'latest'>('forYou');
   const [isFabVisible, setFabVisible] = useState(true);
@@ -137,13 +140,17 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            deletePost(postId);
+          onPress: async () => {
+            try {
+              await deletePostMutation({ id: postId as Id<'posts'> });
+            } catch (error) {
+              Alert.alert('Unable to delete', error instanceof Error ? error.message : 'Please try again.');
+            }
           },
         },
       ]);
     },
-    [deletePost]
+    [deletePostMutation]
   );
 
   const selectedPost = useMemo(

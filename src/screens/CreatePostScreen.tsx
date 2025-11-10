@@ -10,17 +10,26 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useUser } from '@clerk/clerk-expo';
+import { useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { useSettingsStore } from '../store/settingsStore';
 import { spacing, fontSize, borderRadius } from '../constants/spacing';
 
 export default function CreatePostScreen() {
   const colors = useThemeColors();
-  const createPost = useSettingsStore((state) => state.createPost);
   const posts = useSettingsStore((state) => state.posts);
+  const displayName = useSettingsStore((state) => state.displayName);
+  const username = useSettingsStore((state) => state.username);
+  const avatarUrl = useSettingsStore((state) => state.avatarUrl);
+  const fallbackUserId = useSettingsStore((state) => state.currentUserId);
+  const { user } = useUser();
+  const createPostMutation = useMutation(api.posts.create);
 
   const [content, setContent] = useState('');
   const [frameInputs, setFrameInputs] = useState<string[]>(['']);
+  const [isSubmitting, setSubmitting] = useState(false);
 
   const canPublish = useMemo(() => content.trim().length > 0, [content]);
 
@@ -32,7 +41,7 @@ export default function CreatePostScreen() {
     setFrameInputs((prev) => prev.map((item, idx) => (idx === index ? value : item)));
   };
 
-  const handlePublish = () => {
+  const handlePublish = async () => {
     if (!canPublish) {
       Alert.alert('Add some text', 'Frames need at least a short thought.');
       return;
@@ -42,8 +51,29 @@ export default function CreatePostScreen() {
       .map((item) => item.trim())
       .filter((item) => item.length > 0);
 
+    const authorId = user?.id ?? fallbackUserId;
+    if (!authorId) {
+      Alert.alert('Missing profile', 'We could not determine who is posting. Please sign in again.');
+      return;
+    }
+
+    const authorName = user?.fullName?.trim() || displayName || 'Framez user';
+    const authorUsername = user?.username || username || 'framezer';
+    const authorAvatar = user?.imageUrl || avatarUrl;
+
     try {
-      createPost({ content, frames });
+      setSubmitting(true);
+      await createPostMutation({
+        authorId,
+        authorName,
+        authorUsername,
+        authorAvatar,
+        content: content.trim(),
+        frames,
+        likeCount: 0,
+        replyCount: 0,
+        comments: [],
+      });
       setContent('');
       setFrameInputs(['']);
       Alert.alert('Published', 'Your frame is live in the feed.', [
@@ -51,6 +81,8 @@ export default function CreatePostScreen() {
       ]);
     } catch (error) {
       Alert.alert('Unable to publish', (error as Error).message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -119,11 +151,21 @@ export default function CreatePostScreen() {
           <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>{posts.length} frames in your feed</Text>
         </View>
         <Pressable
-          style={[styles.publishButton, { backgroundColor: canPublish ? colors.primary : colors.border }]}
+          style={[
+            styles.publishButton,
+            { backgroundColor: canPublish && !isSubmitting ? colors.primary : colors.border },
+          ]}
           onPress={handlePublish}
-          disabled={!canPublish}
+          disabled={!canPublish || isSubmitting}
         >
-          <Text style={[styles.publishLabel, { color: canPublish ? colors.primaryForeground : colors.mutedForeground }]}>Publish</Text>
+          <Text
+            style={[
+              styles.publishLabel,
+              { color: canPublish && !isSubmitting ? colors.primaryForeground : colors.mutedForeground },
+            ]}
+          >
+            {isSubmitting ? 'Publishing…' : 'Publish'}
+          </Text>
         </Pressable>
       </View>
     </SafeAreaView>

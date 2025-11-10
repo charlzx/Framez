@@ -11,6 +11,9 @@ import AuthNavigator from './src/navigation/AuthNavigator';
 import AppNavigator from './src/navigation/AppNavigator';
 import { useThemeColors } from './src/hooks/useThemeColors';
 import { useSettingsStore } from './src/store/settingsStore';
+import { PostsHydrator } from './src/providers/PostsHydrator';
+import { UsersHydrator } from './src/providers/UsersHydrator';
+import { CurrentUserHydrator } from './src/providers/CurrentUserHydrator';
 
 const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 const CONVEX_URL = process.env.EXPO_PUBLIC_CONVEX_URL!;
@@ -95,6 +98,9 @@ export default function App() {
       <ConvexProvider client={convex}>
         <NavigationContainer theme={navigationTheme}>
           <SignedIn>
+            <CurrentUserHydrator />
+            <UsersHydrator />
+            <PostsHydrator />
             <AppNavigator />
           </SignedIn>
           <SignedOut>

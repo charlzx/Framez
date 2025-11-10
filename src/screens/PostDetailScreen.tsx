@@ -14,12 +14,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { useMutation } from 'convex/react';
 import { spacing, fontSize, borderRadius } from '../constants/spacing';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { useSettingsStore } from '../store/settingsStore';
 import PostCard from '../components/PostCard';
 import PostOptionsModal from '../components/PostOptionsModal';
 import { Comment } from '../types/post';
+import { api } from '../../convex/_generated/api';
+import type { Id } from '../../convex/_generated/dataModel';
 
 export default function PostDetailScreen() {
 	const colors = useThemeColors();
@@ -32,10 +35,13 @@ export default function PostDetailScreen() {
 	);
 	const toggleLike = useSettingsStore((state) => state.toggleLike);
 	const likedPostIds = useSettingsStore((state) => state.likedPostIds);
-	const addComment = useSettingsStore((state) => state.addComment);
 	const hidePost = useSettingsStore((state) => state.hidePost);
-	const deletePost = useSettingsStore((state) => state.deletePost);
+	const displayName = useSettingsStore((state) => state.displayName);
+	const username = useSettingsStore((state) => state.username);
+	const avatarUrl = useSettingsStore((state) => state.avatarUrl);
 	const currentUserId = useSettingsStore((state) => state.currentUserId);
+	const deletePostMutation = useMutation(api.posts.deletePost);
+	const addCommentMutation = useMutation(api.posts.addComment);
 
 	const [commentText, setCommentText] = useState('');
 	const [optionsVisible, setOptionsVisible] = useState(false);
@@ -74,14 +80,21 @@ export default function PostDetailScreen() {
 			{
 				text: 'Delete',
 				style: 'destructive',
-				onPress: () => {
-					deletePost(post._id);
-					setOptionsVisible(false);
-					navigation.goBack();
+				onPress: async () => {
+					try {
+						await deletePostMutation({ id: post._id as Id<'posts'> });
+						setOptionsVisible(false);
+						navigation.goBack();
+					} catch (error) {
+						Alert.alert(
+							'Unable to delete',
+							error instanceof Error ? error.message : 'Please try again.'
+						);
+					}
 				},
 			},
 		]);
-	}, [deletePost, navigation, post]);
+	}, [deletePostMutation, navigation, post]);
 
 	const handleSubmitComment = useCallback(() => {
 		if (!post) {
@@ -94,13 +107,26 @@ export default function PostDetailScreen() {
 			return;
 		}
 
-		try {
-			addComment({ postId: post._id, content: value });
-			setCommentText('');
-		} catch (error) {
-			Alert.alert('Unable to comment', error instanceof Error ? error.message : 'Please try again.');
-		}
-	}, [addComment, commentText, post]);
+		const authorId = currentUserId || 'unknown-user';
+		const authorName = displayName || 'Framez user';
+		const authorUsername = username || 'framezer';
+		const authorAvatar = avatarUrl;
+
+		addCommentMutation({
+			postId: post._id as Id<'posts'>,
+			authorId,
+			authorName,
+			content: value,
+			authorUsername,
+			authorAvatar,
+		})
+			.then(() => {
+				setCommentText('');
+			})
+			.catch((error) => {
+				Alert.alert('Unable to comment', error instanceof Error ? error.message : 'Please try again.');
+			});
+	}, [addCommentMutation, avatarUrl, commentText, currentUserId, displayName, post, username]);
 
 	const handleOpenProfile = useCallback(
 		(userId: string) => {

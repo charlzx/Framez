@@ -10,12 +10,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { useMutation } from 'convex/react';
 import { spacing, fontSize, borderRadius } from '../constants/spacing';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { useSettingsStore } from '../store/settingsStore';
 import PostCard from '../components/PostCard';
 import PostOptionsModal from '../components/PostOptionsModal';
 import { Post } from '../types/post';
+import { api } from '../../convex/_generated/api';
+import type { Id } from '../../convex/_generated/dataModel';
 
 export default function UserProfileScreen() {
 	const colors = useThemeColors();
@@ -29,7 +32,7 @@ export default function UserProfileScreen() {
 	const likedPostIds = useSettingsStore((state) => state.likedPostIds);
 	const toggleLike = useSettingsStore((state) => state.toggleLike);
 	const hidePost = useSettingsStore((state) => state.hidePost);
-	const deletePost = useSettingsStore((state) => state.deletePost);
+	const deletePostMutation = useMutation(api.posts.deletePost);
 
 	const [optionsVisible, setOptionsVisible] = useState(false);
 	const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
@@ -63,15 +66,23 @@ export default function UserProfileScreen() {
 				{
 					text: 'Delete',
 					style: 'destructive',
-					onPress: () => {
-						deletePost(postId);
-						setOptionsVisible(false);
-						setSelectedPostId(null);
+					onPress: async () => {
+						try {
+							await deletePostMutation({ id: postId as Id<'posts'> });
+						} catch (error) {
+							Alert.alert(
+								'Unable to delete',
+								error instanceof Error ? error.message : 'Please try again.'
+							);
+						} finally {
+							setOptionsVisible(false);
+							setSelectedPostId(null);
+						}
 					},
 				},
 			]);
 		},
-		[deletePost]
+		[deletePostMutation]
 	);
 
 		const handleHideSelected = useCallback(() => {

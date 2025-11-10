@@ -14,12 +14,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useScrollToTop } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useMutation } from 'convex/react';
 import { useSettingsStore } from '../store/settingsStore';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { spacing, fontSize, borderRadius } from '../constants/spacing';
 import PostCard from '../components/PostCard';
 import PostOptionsModal from '../components/PostOptionsModal';
 import { SearchStackParamList } from '../navigation/SearchStack';
+import { api } from '../../convex/_generated/api';
+import type { Id } from '../../convex/_generated/dataModel';
 
 const SEARCH_TABS: Array<{ key: 'users' | 'posts'; label: string }> = [
   { key: 'users', label: 'Users' },
@@ -38,7 +41,7 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
   const addRecentSearch = useSettingsStore((state) => state.addRecentSearch);
   const hiddenPostIds = useSettingsStore((state) => state.hiddenPostIds);
   const hidePost = useSettingsStore((state) => state.hidePost);
-  const deletePost = useSettingsStore((state) => state.deletePost);
+  const deletePostMutation = useMutation(api.posts.deletePost);
   const currentUserId = useSettingsStore((state) => state.currentUserId);
 
   const [query, setQuery] = useState('');
@@ -142,13 +145,20 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            deletePost(postId);
+          onPress: async () => {
+            try {
+              await deletePostMutation({ id: postId as Id<'posts'> });
+            } catch (error) {
+              Alert.alert(
+                'Unable to delete',
+                error instanceof Error ? error.message : 'Please try again.'
+              );
+            }
           },
         },
       ]);
     },
-    [deletePost]
+    [deletePostMutation]
   );
 
   const selectedPost = useMemo(
