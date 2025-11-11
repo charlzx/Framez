@@ -19,6 +19,7 @@ import PostOptionsModal from '../components/PostOptionsModal';
 import { Post } from '../types/post';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
+import { usePostInteractions } from '../hooks/usePostInteractions';
 
 export default function UserProfileScreen() {
 	const colors = useThemeColors();
@@ -30,9 +31,8 @@ export default function UserProfileScreen() {
 	const people = useSettingsStore((state) => state.people);
 	const posts = useSettingsStore((state) => state.posts);
 	const likedPostIds = useSettingsStore((state) => state.likedPostIds);
-	const toggleLike = useSettingsStore((state) => state.toggleLike);
-	const hidePost = useSettingsStore((state) => state.hidePost);
 	const deletePostMutation = useMutation(api.posts.deletePost);
+  const { toggleLike: toggleLikeOnServer, hidePost: hidePostOnServer } = usePostInteractions();
 
 	const [optionsVisible, setOptionsVisible] = useState(false);
 	const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
@@ -61,6 +61,11 @@ export default function UserProfileScreen() {
 
 	const confirmDelete = useCallback(
 		(postId: string) => {
+			if (!currentUserId) {
+				Alert.alert('Unable to delete', 'You need to be signed in.');
+				return;
+			}
+
 			Alert.alert('Delete this frame?', 'This will remove the frame for everyone and cannot be undone.', [
 				{ text: 'Cancel', style: 'cancel' },
 				{
@@ -68,7 +73,7 @@ export default function UserProfileScreen() {
 					style: 'destructive',
 					onPress: async () => {
 						try {
-							await deletePostMutation({ id: postId as Id<'posts'> });
+							await deletePostMutation({ id: postId as Id<'posts'>, requesterId: currentUserId });
 						} catch (error) {
 							Alert.alert(
 								'Unable to delete',
@@ -82,15 +87,19 @@ export default function UserProfileScreen() {
 				},
 			]);
 		},
-		[deletePostMutation]
+		[currentUserId, deletePostMutation]
 	);
 
 		const handleHideSelected = useCallback(() => {
-			if (selectedPostId) {
-				hidePost(selectedPostId);
-				handleCloseOptions();
+			if (!selectedPostId || !selectedPost) {
+				return;
 			}
-		}, [handleCloseOptions, hidePost, selectedPostId]);
+
+			handleCloseOptions();
+			hidePostOnServer(selectedPostId, selectedPost.authorId).catch((error) => {
+				Alert.alert('Unable to hide', error instanceof Error ? error.message : 'Please try again.');
+			});
+		}, [handleCloseOptions, hidePostOnServer, selectedPost, selectedPostId]);
 
 	const handleDeleteSelected = useCallback(() => {
 		if (selectedPostId) {
@@ -115,19 +124,28 @@ export default function UserProfileScreen() {
 			[navigation, userId]
 		);
 
+	const handleToggleLike = useCallback(
+		(postId: string) => {
+			toggleLikeOnServer(postId).catch((error) => {
+				Alert.alert('Unable to update like', error instanceof Error ? error.message : 'Please try again.');
+			});
+		},
+		[toggleLikeOnServer]
+	);
+
 	const renderItem = useCallback(
 		({ item }: { item: Post }) => (
 			<PostCard
 				post={item}
 				isLiked={likedPostIds.includes(item._id)}
-				onToggleLike={toggleLike}
+				onToggleLike={handleToggleLike}
 				onPressMore={handleMoreOptions}
 				onReply={handleOpenPost}
 				onPressPost={handleOpenPost}
 				onPressAuthor={handleOpenProfile}
 			/>
 		),
-		[handleMoreOptions, handleOpenPost, handleOpenProfile, likedPostIds, toggleLike]
+		[handleMoreOptions, handleOpenPost, handleOpenProfile, handleToggleLike, likedPostIds]
 	);
 
 	if (!person) {
@@ -198,9 +216,10 @@ export default function UserProfileScreen() {
 			<PostOptionsModal
 				visible={optionsVisible}
 				onClose={handleCloseOptions}
-				onHide={handleHideSelected}
-						onDelete={selectedPost && selectedPost.authorId === currentUserId ? handleDeleteSelected : undefined}
-						canDelete={!!selectedPost && selectedPost.authorId === currentUserId}
+				onHide={selectedPost && selectedPost.authorId !== currentUserId ? handleHideSelected : undefined}
+				onDelete={selectedPost && selectedPost.authorId === currentUserId ? handleDeleteSelected : undefined}
+				canHide={!!selectedPost && selectedPost.authorId !== currentUserId}
+				canDelete={!!selectedPost && selectedPost.authorId === currentUserId}
 			/>
 		</SafeAreaView>
 	);

@@ -7,8 +7,9 @@ import { useThemeColors } from '../hooks/useThemeColors';
 interface PostOptionsModalProps {
   visible: boolean;
   onClose: () => void;
-  onHide: () => void;
+  onHide?: () => void;
   onDelete?: () => void;
+  canHide: boolean;
   canDelete: boolean;
 }
 
@@ -17,6 +18,7 @@ const PostOptionsModal: React.FC<PostOptionsModalProps> = ({
   onClose,
   onHide,
   onDelete,
+  canHide,
   canDelete,
 }) => {
   const colors = useThemeColors();
@@ -32,20 +34,22 @@ const PostOptionsModal: React.FC<PostOptionsModalProps> = ({
         />
         <View style={[styles.sheetContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sheetTitle, { color: colors.foreground }]}>Frame options</Text>
-          <Pressable
-            style={styles.optionRow}
-            accessibilityRole="button"
-            onPress={() => {
-              onHide();
-              onClose();
-            }}
-          >
-            <Ionicons name="eye-off-outline" size={20} color={colors.mutedForeground} />
-            <View style={styles.optionLabelWrapper}>
-              <Text style={[styles.optionLabel, { color: colors.foreground }]}>Hide this frame</Text>
-              <Text style={[styles.optionDescription, { color: colors.mutedForeground }]}>See fewer updates like this</Text>
-            </View>
-          </Pressable>
+          {canHide && onHide ? (
+            <Pressable
+              style={styles.optionRow}
+              accessibilityRole="button"
+              onPress={() => {
+                onHide();
+                onClose();
+              }}
+            >
+              <Ionicons name="eye-off-outline" size={20} color={colors.mutedForeground} />
+              <View style={styles.optionLabelWrapper}>
+                <Text style={[styles.optionLabel, { color: colors.foreground }]}>Hide this frame</Text>
+                <Text style={[styles.optionDescription, { color: colors.mutedForeground }]}>See fewer updates like this</Text>
+              </View>
+            </Pressable>
+          ) : null}
           {canDelete && onDelete ? (
             <Pressable
               style={styles.optionRow}

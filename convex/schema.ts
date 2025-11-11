@@ -56,4 +56,22 @@ export default defineSchema({
   })
     .index("by_author", ["authorId"])
     .index("by_timestamp", ["timestamp"]),
+
+  postLikes: defineTable({
+    postId: v.id("posts"),
+    userId: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_post", ["postId"])
+    .index("by_user", ["userId"])
+    .index("by_post_user", ["postId", "userId"]),
+
+  hiddenPosts: defineTable({
+    postId: v.id("posts"),
+    userId: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_post", ["postId"])
+    .index("by_user", ["userId"])
+    .index("by_post_user", ["postId", "userId"]),
 });

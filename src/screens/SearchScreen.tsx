@@ -23,6 +23,7 @@ import PostOptionsModal from '../components/PostOptionsModal';
 import { SearchStackParamList } from '../navigation/SearchStack';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
+import { usePostInteractions } from '../hooks/usePostInteractions';
 
 const SEARCH_TABS: Array<{ key: 'users' | 'posts'; label: string }> = [
   { key: 'users', label: 'Users' },
@@ -36,13 +37,12 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
   const people = useSettingsStore((state) => state.people);
   const posts = useSettingsStore((state) => state.posts);
   const likedPostIds = useSettingsStore((state) => state.likedPostIds);
-  const toggleLike = useSettingsStore((state) => state.toggleLike);
   const recentSearches = useSettingsStore((state) => state.recentSearches);
   const addRecentSearch = useSettingsStore((state) => state.addRecentSearch);
   const hiddenPostIds = useSettingsStore((state) => state.hiddenPostIds);
-  const hidePost = useSettingsStore((state) => state.hidePost);
   const deletePostMutation = useMutation(api.posts.deletePost);
   const currentUserId = useSettingsStore((state) => state.currentUserId);
+  const { toggleLike: toggleLikeOnServer, hidePost: hidePostOnServer } = usePostInteractions();
 
   const [query, setQuery] = useState('');
   const [showResults, setShowResults] = useState(false);
@@ -140,6 +140,11 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
 
   const confirmDelete = useCallback(
     (postId: string) => {
+      if (!currentUserId) {
+        Alert.alert('Unable to delete', 'You need to be signed in.');
+        return;
+      }
+
       Alert.alert('Delete this frame?', 'This will remove the frame for everyone and cannot be undone.', [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -147,7 +152,7 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
           style: 'destructive',
           onPress: async () => {
             try {
-              await deletePostMutation({ id: postId as Id<'posts'> });
+              await deletePostMutation({ id: postId as Id<'posts'>, requesterId: currentUserId });
             } catch (error) {
               Alert.alert(
                 'Unable to delete',
@@ -158,7 +163,7 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
         },
       ]);
     },
-    [deletePostMutation]
+    [currentUserId, deletePostMutation]
   );
 
   const selectedPost = useMemo(
@@ -167,11 +172,24 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
   );
 
   const handleHideSelected = useCallback(() => {
-    if (selectedPostId) {
-      hidePost(selectedPostId);
-      handleCloseOptions();
+    if (!selectedPostId || !selectedPost) {
+      return;
     }
-  }, [handleCloseOptions, hidePost, selectedPostId]);
+
+    handleCloseOptions();
+    hidePostOnServer(selectedPostId, selectedPost.authorId).catch((error) => {
+      Alert.alert('Unable to hide', error instanceof Error ? error.message : 'Please try again.');
+    });
+  }, [handleCloseOptions, hidePostOnServer, selectedPost, selectedPostId]);
+  const handleToggleLike = useCallback(
+    (postId: string) => {
+      toggleLikeOnServer(postId).catch((error) => {
+        Alert.alert('Unable to update like', error instanceof Error ? error.message : 'Please try again.');
+      });
+    },
+    [toggleLikeOnServer]
+  );
+
 
   const handleDeleteSelected = useCallback(() => {
     if (selectedPostId) {
@@ -334,7 +352,7 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
                       key={post._id}
                       post={post}
                       isLiked={likedPostIds.includes(post._id)}
-                      onToggleLike={toggleLike}
+                      onToggleLike={handleToggleLike}
                       onPressMore={handleMoreOptions}
                       onReply={handleOpenPost}
                       onPressPost={handleOpenPost}
@@ -350,8 +368,9 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
       <PostOptionsModal
         visible={optionsVisible && !!selectedPost}
         onClose={handleCloseOptions}
-        onHide={handleHideSelected}
+        onHide={selectedPost && selectedPost.authorId !== currentUserId ? handleHideSelected : undefined}
         onDelete={selectedPost && selectedPost.authorId === currentUserId ? handleDeleteSelected : undefined}
+        canHide={!!selectedPost && selectedPost.authorId !== currentUserId}
         canDelete={!!selectedPost && selectedPost.authorId === currentUserId}
       />
     </SafeAreaView>

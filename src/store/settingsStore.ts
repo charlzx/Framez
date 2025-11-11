@@ -95,7 +95,10 @@ interface SettingsState {
   setCurrentUserProfile: (payload: Partial<User> & { clerkId?: string }) => void;
   setPeople: (people: User[]) => void;
   likedPostIds: string[];
+  setLikedPostIds: (ids: string[]) => void;
+  applyLikeState: (postId: string, liked: boolean) => void;
   hiddenPostIds: string[];
+  setHiddenPostIds: (ids: string[]) => void;
   notifications: NotificationItem[];
   recentSearches: string[];
   people: User[];
@@ -107,6 +110,7 @@ interface SettingsState {
   toggleLike: (postId: string) => void;
   addRecentSearch: (term: string) => void;
   hidePost: (postId: string) => void;
+  unhidePost: (postId: string) => void;
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
   getUnreadCount: () => number;
@@ -196,7 +200,29 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       };
     }),
   likedPostIds: [],
+  setLikedPostIds: (ids) =>
+    set({ likedPostIds: Array.from(new Set(ids)) }),
+  applyLikeState: (postId, liked) =>
+    set((state) => {
+      const hasLiked = state.likedPostIds.includes(postId);
+
+      if (liked && hasLiked) {
+        return state;
+      }
+
+      if (!liked && !hasLiked) {
+        return state;
+      }
+
+      return {
+        likedPostIds: liked
+          ? state.likedPostIds.concat(postId)
+          : state.likedPostIds.filter((id) => id !== postId),
+      };
+    }),
   hiddenPostIds: [],
+  setHiddenPostIds: (ids) =>
+    set({ hiddenPostIds: Array.from(new Set(ids)) }),
   notifications: [
     {
       id: 'notif-1',
@@ -308,14 +334,26 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       };
     });
   },
-  hidePost: (postId) => {
-    const { hiddenPostIds } = get();
-    if (hiddenPostIds.includes(postId)) {
-      return;
-    }
+  hidePost: (postId) =>
+    set((state) => {
+      if (state.hiddenPostIds.includes(postId)) {
+        return state;
+      }
 
-    set({ hiddenPostIds: hiddenPostIds.concat(postId) });
-  },
+      return {
+        hiddenPostIds: state.hiddenPostIds.concat(postId),
+      };
+    }),
+  unhidePost: (postId) =>
+    set((state) => {
+      if (!state.hiddenPostIds.includes(postId)) {
+        return state;
+      }
+
+      return {
+        hiddenPostIds: state.hiddenPostIds.filter((id) => id !== postId),
+      };
+    }),
   markNotificationRead: (id) =>
     set((state) => ({
       notifications: state.notifications.map((notification) =>

@@ -100,18 +100,42 @@ export const getById = query({
 
 // Delete a post
 export const deletePost = mutation({
-  args: { id: v.id("posts") },
+  args: {
+    id: v.id("posts"),
+    requesterId: v.string(),
+  },
   handler: async (ctx, args) => {
     const post = await ctx.db.get(args.id);
     if (!post) {
       throw new Error("Post not found");
     }
-    
-    // Delete associated image from storage if it exists
+
+    if (post.authorId !== args.requesterId) {
+      throw new Error("You can only delete your own post.");
+    }
+
     if (post.imageStorageId) {
       await ctx.storage.delete(post.imageStorageId);
     }
-    
+
+    const existingLikes = await ctx.db
+      .query("postLikes")
+      .withIndex("by_post", (q) => q.eq("postId", args.id))
+      .collect();
+
+    for (const like of existingLikes) {
+      await ctx.db.delete(like._id);
+    }
+
+    const hiddenEntries = await ctx.db
+      .query("hiddenPosts")
+      .withIndex("by_post", (q) => q.eq("postId", args.id))
+      .collect();
+
+    for (const entry of hiddenEntries) {
+      await ctx.db.delete(entry._id);
+    }
+
     await ctx.db.delete(args.id);
   },
 });
@@ -156,5 +180,120 @@ export const addComment = mutation({
     });
 
     return newComment;
+  },
+});
+
+export const toggleLike = mutation({
+  args: {
+    postId: v.id("posts"),
+    userId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const post = await ctx.db.get(args.postId);
+    if (!post) {
+      throw new Error("Post not found");
+    }
+
+    const existingLike = await ctx.db
+      .query("postLikes")
+      .withIndex("by_post_user", (q) => q.eq("postId", args.postId).eq("userId", args.userId))
+      .unique();
+
+    if (existingLike) {
+      await ctx.db.delete(existingLike._id);
+    } else {
+      await ctx.db.insert("postLikes", {
+        postId: args.postId,
+        userId: args.userId,
+        createdAt: Date.now(),
+      });
+    }
+
+    const likes = await ctx.db
+      .query("postLikes")
+      .withIndex("by_post", (q) => q.eq("postId", args.postId))
+      .collect();
+
+    await ctx.db.patch(args.postId, {
+      likeCount: likes.length,
+    });
+
+    return { liked: !existingLike, likeCount: likes.length };
+  },
+});
+
+export const hidePost = mutation({
+  args: {
+    postId: v.id("posts"),
+    userId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const post = await ctx.db.get(args.postId);
+    if (!post) {
+      throw new Error("Post not found");
+    }
+
+    if (post.authorId === args.userId) {
+      throw new Error("You cannot hide your own post.");
+    }
+
+    const existingEntry = await ctx.db
+      .query("hiddenPosts")
+      .withIndex("by_post_user", (q) => q.eq("postId", args.postId).eq("userId", args.userId))
+      .unique();
+
+    if (existingEntry) {
+      return { hidden: true };
+    }
+
+    await ctx.db.insert("hiddenPosts", {
+      postId: args.postId,
+      userId: args.userId,
+      createdAt: Date.now(),
+    });
+
+    return { hidden: true };
+  },
+});
+
+export const unhidePost = mutation({
+  args: {
+    postId: v.id("posts"),
+    userId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const existingEntry = await ctx.db
+      .query("hiddenPosts")
+      .withIndex("by_post_user", (q) => q.eq("postId", args.postId).eq("userId", args.userId))
+      .unique();
+
+    if (existingEntry) {
+      await ctx.db.delete(existingEntry._id);
+    }
+
+    return { hidden: false };
+  },
+});
+
+export const getUserPreferences = query({
+  args: {
+    userId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const [likes, hidden] = await Promise.all([
+      ctx.db
+        .query("postLikes")
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .collect(),
+      ctx.db
+        .query("hiddenPosts")
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .collect(),
+    ]);
+
+    return {
+      likedPostIds: likes.map((like) => like.postId),
+      hiddenPostIds: hidden.map((entry) => entry.postId),
+    };
   },
 });

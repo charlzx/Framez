@@ -23,6 +23,7 @@ import PostOptionsModal from '../components/PostOptionsModal';
 import { Comment } from '../types/post';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
+import { usePostInteractions } from '../hooks/usePostInteractions';
 
 export default function PostDetailScreen() {
 	const colors = useThemeColors();
@@ -33,15 +34,14 @@ export default function PostDetailScreen() {
 	const post = useSettingsStore(
 		useCallback((state) => state.posts.find((item) => item._id === postId) ?? null, [postId])
 	);
-	const toggleLike = useSettingsStore((state) => state.toggleLike);
 	const likedPostIds = useSettingsStore((state) => state.likedPostIds);
-	const hidePost = useSettingsStore((state) => state.hidePost);
 	const displayName = useSettingsStore((state) => state.displayName);
 	const username = useSettingsStore((state) => state.username);
 	const avatarUrl = useSettingsStore((state) => state.avatarUrl);
 	const currentUserId = useSettingsStore((state) => state.currentUserId);
 	const deletePostMutation = useMutation(api.posts.deletePost);
 	const addCommentMutation = useMutation(api.posts.addComment);
+  const { toggleLike: toggleLikeOnServer, hidePost: hidePostOnServer } = usePostInteractions();
 
 	const [commentText, setCommentText] = useState('');
 	const [optionsVisible, setOptionsVisible] = useState(false);
@@ -65,10 +65,15 @@ export default function PostDetailScreen() {
 		if (!post) {
 			return;
 		}
-		hidePost(post._id);
-		setOptionsVisible(false);
-		navigation.goBack();
-	}, [hidePost, navigation, post]);
+
+		hidePostOnServer(post._id, post.authorId)
+			.then(() => {
+				navigation.goBack();
+			})
+			.catch((error) => {
+				Alert.alert('Unable to hide', error instanceof Error ? error.message : 'Please try again.');
+			});
+	}, [hidePostOnServer, navigation, post]);
 
 	const handleDeletePost = useCallback(() => {
 		if (!post) {
@@ -82,7 +87,7 @@ export default function PostDetailScreen() {
 				style: 'destructive',
 				onPress: async () => {
 					try {
-						await deletePostMutation({ id: post._id as Id<'posts'> });
+						await deletePostMutation({ id: post._id as Id<'posts'>, requesterId: currentUserId });
 						setOptionsVisible(false);
 						navigation.goBack();
 					} catch (error) {
@@ -94,7 +99,16 @@ export default function PostDetailScreen() {
 				},
 			},
 		]);
-	}, [deletePostMutation, navigation, post]);
+	}, [currentUserId, deletePostMutation, navigation, post]);
+
+	const handleToggleLike = useCallback(
+		(postIdValue: string) => {
+			toggleLikeOnServer(postIdValue).catch((error) => {
+				Alert.alert('Unable to update like', error instanceof Error ? error.message : 'Please try again.');
+			});
+		},
+		[toggleLikeOnServer]
+	);
 
 	const handleSubmitComment = useCallback(() => {
 		if (!post) {
@@ -163,7 +177,7 @@ export default function PostDetailScreen() {
 							<PostCard
 								post={post}
 								isLiked={likedPostIds.includes(post._id)}
-								onToggleLike={toggleLike}
+								onToggleLike={handleToggleLike}
 								onPressMore={handleOpenOptions}
 								onPressAuthor={handleOpenProfile}
 							/>
@@ -227,8 +241,9 @@ export default function PostDetailScreen() {
 			<PostOptionsModal
 				visible={optionsVisible}
 				onClose={handleCloseOptions}
-				onHide={handleHidePost}
+				onHide={post.authorId !== currentUserId ? handleHidePost : undefined}
 				onDelete={post.authorId === currentUserId ? handleDeletePost : undefined}
+				canHide={post.authorId !== currentUserId}
 				canDelete={post.authorId === currentUserId}
 			/>
 		</SafeAreaView>

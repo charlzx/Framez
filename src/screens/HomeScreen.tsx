@@ -23,6 +23,7 @@ import PostOptionsModal from '../components/PostOptionsModal';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { spacing, fontSize, borderRadius } from '../constants/spacing';
 import { Post } from '../types/post';
+import { usePostInteractions } from '../hooks/usePostInteractions';
 
 const FEED_TABS: Array<{ key: 'forYou' | 'latest'; label: string }> = [
   { key: 'forYou', label: 'For you' },
@@ -37,12 +38,11 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const colors = useThemeColors();
   const posts = useSettingsStore((state) => state.posts);
   const likedPostIds = useSettingsStore((state) => state.likedPostIds);
-  const toggleLike = useSettingsStore((state) => state.toggleLike);
   const notifications = useSettingsStore((state) => state.notifications);
   const hiddenPostIds = useSettingsStore((state) => state.hiddenPostIds);
-  const hidePost = useSettingsStore((state) => state.hidePost);
-  const currentUserId = useSettingsStore((state) => state.currentUserId);
   const deletePostMutation = useMutation(api.posts.deletePost);
+  const { currentUserId, toggleLike: toggleLikeOnServer, hidePost: hidePostOnServer } =
+    usePostInteractions();
 
   const [activeTab, setActiveTab] = useState<'forYou' | 'latest'>('forYou');
   const [isFabVisible, setFabVisible] = useState(true);
@@ -135,6 +135,11 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
   const confirmDelete = useCallback(
     (postId: string) => {
+      if (!currentUserId) {
+        Alert.alert('Unable to delete', 'You need to be signed in.');
+        return;
+      }
+
       Alert.alert('Delete this frame?', 'This will remove the frame for everyone and cannot be undone.', [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -142,7 +147,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           style: 'destructive',
           onPress: async () => {
             try {
-              await deletePostMutation({ id: postId as Id<'posts'> });
+              await deletePostMutation({ id: postId as Id<'posts'>, requesterId: currentUserId });
             } catch (error) {
               Alert.alert('Unable to delete', error instanceof Error ? error.message : 'Please try again.');
             }
@@ -150,7 +155,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         },
       ]);
     },
-    [deletePostMutation]
+    [currentUserId, deletePostMutation]
   );
 
   const selectedPost = useMemo(
@@ -159,11 +164,15 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   );
 
   const handleHideSelected = useCallback(() => {
-    if (selectedPostId) {
-      hidePost(selectedPostId);
-      handleCloseOptions();
+    if (!selectedPostId || !selectedPost) {
+      return;
     }
-  }, [handleCloseOptions, hidePost, selectedPostId]);
+
+    handleCloseOptions();
+    hidePostOnServer(selectedPostId, selectedPost.authorId).catch((error) => {
+      Alert.alert('Unable to hide', error instanceof Error ? error.message : 'Please try again.');
+    });
+  }, [handleCloseOptions, hidePostOnServer, selectedPost, selectedPostId]);
 
   const handleDeleteSelected = useCallback(() => {
     if (selectedPostId) {
@@ -222,19 +231,28 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     </View>
   ), [activeTab, colors, navigation, unreadCount]);
 
+  const handleToggleLike = useCallback(
+    (postId: string) => {
+      toggleLikeOnServer(postId).catch((error) => {
+        Alert.alert('Unable to update like', error instanceof Error ? error.message : 'Please try again.');
+      });
+    },
+    [toggleLikeOnServer]
+  );
+
   const renderItem = useCallback(
     ({ item }: { item: Post }) => (
       <PostCard
         post={item}
         isLiked={likedPostIds.includes(item._id)}
-        onToggleLike={toggleLike}
+        onToggleLike={handleToggleLike}
         onPressMore={handleMoreOptions}
         onReply={handleOpenPost}
         onPressPost={handleOpenPost}
         onPressAuthor={handleOpenProfile}
       />
     ),
-    [handleMoreOptions, handleOpenPost, handleOpenProfile, likedPostIds, toggleLike]
+    [handleMoreOptions, handleOpenPost, handleOpenProfile, handleToggleLike, likedPostIds]
   );
 
   const fabStyle = useMemo(
@@ -284,8 +302,9 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       <PostOptionsModal
         visible={optionsVisible && !!selectedPost}
         onClose={handleCloseOptions}
-        onHide={handleHideSelected}
+        onHide={selectedPost && selectedPost.authorId !== currentUserId ? handleHideSelected : undefined}
         onDelete={selectedPost && selectedPost.authorId === currentUserId ? handleDeleteSelected : undefined}
+        canHide={!!selectedPost && selectedPost.authorId !== currentUserId}
         canDelete={!!selectedPost && selectedPost.authorId === currentUserId}
       />
     </SafeAreaView>

@@ -15,6 +15,7 @@ import { spacing, fontSize, borderRadius } from '../constants/spacing';
 import { Post } from '../types/post';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
+import { usePostInteractions } from '../hooks/usePostInteractions';
 
 type ProfileScreenProps = NativeStackScreenProps<ProfileStackParamList, 'ProfileMain'>;
 
@@ -36,14 +37,13 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
   const avatarUrl = useSettingsStore((state) => state.avatarUrl);
   const posts = useSettingsStore((state) => state.posts);
   const likedPostIds = useSettingsStore((state) => state.likedPostIds);
-  const toggleLike = useSettingsStore((state) => state.toggleLike);
   const updateProfile = useSettingsStore((state) => state.updateProfile);
   const attemptUsernameChange = useSettingsStore((state) => state.attemptUsernameChange);
   const currentUserId = useSettingsStore((state) => state.currentUserId);
   const people = useSettingsStore((state) => state.people);
   const hiddenPostIds = useSettingsStore((state) => state.hiddenPostIds);
-  const hidePost = useSettingsStore((state) => state.hidePost);
   const deletePostMutation = useMutation(api.posts.deletePost);
+  const { toggleLike: toggleLikeOnServer, hidePost: hidePostOnServer } = usePostInteractions();
 
   const currentUser = useMemo(
     () => people.find((person) => person._id === currentUserId),
@@ -78,14 +78,23 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
   }, []);
 
   const handleHideSelected = useCallback(() => {
-    if (selectedPostId) {
-      hidePost(selectedPostId);
-      handleCloseOptions();
+    if (!selectedPostId || !selectedPost) {
+      return;
     }
-  }, [handleCloseOptions, hidePost, selectedPostId]);
+
+    handleCloseOptions();
+    hidePostOnServer(selectedPostId, selectedPost.authorId).catch((error) => {
+      Alert.alert('Unable to hide', error instanceof Error ? error.message : 'Please try again.');
+    });
+  }, [handleCloseOptions, hidePostOnServer, selectedPost, selectedPostId]);
 
   const confirmDelete = useCallback(
     (postId: string) => {
+      if (!currentUserId) {
+        Alert.alert('Unable to delete', 'You need to be signed in.');
+        return;
+      }
+
       Alert.alert('Delete this post?', 'This will remove the post for everyone and cannot be undone.', [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -93,7 +102,7 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
           style: 'destructive',
           onPress: async () => {
             try {
-              await deletePostMutation({ id: postId as Id<'posts'> });
+              await deletePostMutation({ id: postId as Id<'posts'>, requesterId: currentUserId });
             } catch (error) {
               Alert.alert(
                 'Unable to delete',
@@ -104,7 +113,7 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
         },
       ]);
     },
-    [deletePostMutation]
+    [currentUserId, deletePostMutation]
   );
 
   const handleDeleteSelected = useCallback(() => {
@@ -224,19 +233,28 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
     [activeTab, avatarUrl, colors, currentUser?.followersCount, currentUser?.followingCount, description, displayName, navigation, userPosts.length, username]
   );
 
+  const handleToggleLike = useCallback(
+    (postId: string) => {
+      toggleLikeOnServer(postId).catch((error) => {
+        Alert.alert('Unable to update like', error instanceof Error ? error.message : 'Please try again.');
+      });
+    },
+    [toggleLikeOnServer]
+  );
+
   const renderItem = useCallback(
     ({ item }: { item: Post }) => (
       <PostCard
         post={item}
         isLiked={likedPostIds.includes(item._id)}
-        onToggleLike={toggleLike}
+        onToggleLike={handleToggleLike}
         onPressMore={handleMoreOptions}
         onReply={handleOpenPost}
         onPressPost={handleOpenPost}
         onPressAuthor={handleOpenProfile}
       />
     ),
-    [handleMoreOptions, handleOpenPost, handleOpenProfile, likedPostIds, toggleLike]
+    [handleMoreOptions, handleOpenPost, handleOpenProfile, handleToggleLike, likedPostIds]
   );
 
   return (
@@ -276,8 +294,9 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
       <PostOptionsModal
         visible={optionsVisible && !!selectedPost}
         onClose={handleCloseOptions}
-        onHide={handleHideSelected}
+        onHide={selectedPost && selectedPost.authorId !== currentUserId ? handleHideSelected : undefined}
         onDelete={selectedPost && selectedPost.authorId === currentUserId ? handleDeleteSelected : undefined}
+        canHide={!!selectedPost && selectedPost.authorId !== currentUserId}
         canDelete={!!selectedPost && selectedPost.authorId === currentUserId}
       />
     </SafeAreaView>
