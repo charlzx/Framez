@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as notifications from "../notifications.js";
 import type * as posts from "../posts.js";
 import type * as users from "../users.js";
 
@@ -26,6 +27,7 @@ import type {
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  notifications: typeof notifications;
   posts: typeof posts;
   users: typeof users;
 }>;

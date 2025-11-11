@@ -45,13 +45,17 @@ export const create = mutation({
     const frameCount = frames.length > 0 ? frames.length + 1 : undefined;
     const replyCount = args.replyCount ?? comments.length;
 
+    const resolvedImageUrl = args.imageStorageId
+      ? await ctx.storage.getUrl(args.imageStorageId)
+      : args.imageUrl;
+
     const postId = await ctx.db.insert("posts", {
       authorId: args.authorId,
       authorName: args.authorName,
       authorUsername: args.authorUsername,
       authorAvatar: args.authorAvatar,
       content: args.content,
-      imageUrl: args.imageUrl,
+      imageUrl: resolvedImageUrl ?? undefined,
       imageStorageId: args.imageStorageId,
       timestamp: Date.now(),
       frames,
@@ -73,7 +77,14 @@ export const getAll = query({
       .withIndex("by_timestamp")
       .order("desc")
       .collect();
-    return posts;
+    return await Promise.all(
+      posts.map(async (post) => ({
+        ...post,
+        imageUrl: post.imageStorageId
+          ? (await ctx.storage.getUrl(post.imageStorageId)) ?? post.imageUrl ?? undefined
+          : post.imageUrl,
+      }))
+    );
   },
 });
 
@@ -86,7 +97,14 @@ export const getByUser = query({
       .withIndex("by_author", (q) => q.eq("authorId", args.authorId))
       .order("desc")
       .collect();
-    return posts;
+    return await Promise.all(
+      posts.map(async (post) => ({
+        ...post,
+        imageUrl: post.imageStorageId
+          ? (await ctx.storage.getUrl(post.imageStorageId)) ?? post.imageUrl ?? undefined
+          : post.imageUrl,
+      }))
+    );
   },
 });
 
@@ -94,7 +112,19 @@ export const getByUser = query({
 export const getById = query({
   args: { id: v.id("posts") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const post = await ctx.db.get(args.id);
+    if (!post) {
+      return null;
+    }
+
+    const imageUrl = post.imageStorageId
+      ? (await ctx.storage.getUrl(post.imageStorageId)) ?? post.imageUrl ?? undefined
+      : post.imageUrl;
+
+    return {
+      ...post,
+      imageUrl,
+    };
   },
 });
 

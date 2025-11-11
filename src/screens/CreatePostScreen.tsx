@@ -7,11 +7,14 @@ import {
   Pressable,
   Alert,
   ScrollView,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useUser } from '@clerk/clerk-expo';
 import { useMutation } from 'convex/react';
+import type { Id } from '../../convex/_generated/dataModel';
 import { api } from '../../convex/_generated/api';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { useSettingsStore } from '../store/settingsStore';
@@ -26,12 +29,17 @@ export default function CreatePostScreen() {
   const fallbackUserId = useSettingsStore((state) => state.currentUserId);
   const { user } = useUser();
   const createPostMutation = useMutation(api.posts.create);
+  const generateUploadUrl = useMutation(api.posts.generateUploadUrl);
 
   const [content, setContent] = useState('');
   const [frameInputs, setFrameInputs] = useState<string[]>(['']);
   const [isSubmitting, setSubmitting] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  const canPublish = useMemo(() => content.trim().length > 0, [content]);
+  const canPublish = useMemo(
+    () => content.trim().length > 0 || Boolean(selectedImage),
+    [content, selectedImage],
+  );
 
   const handleAddFrameStep = () => {
     setFrameInputs((prev) => [...prev, '']);
@@ -41,9 +49,31 @@ export default function CreatePostScreen() {
     setFrameInputs((prev) => prev.map((item, idx) => (idx === index ? value : item)));
   };
 
+  const handlePickImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission needed', 'Allow access to your photos to attach an image.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: false,
+      quality: 0.85,
+    });
+
+    if (!result.canceled && result.assets?.length) {
+      setSelectedImage(result.assets[0]?.uri ?? null);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+  };
+
   const handlePublish = async () => {
     if (!canPublish) {
-      Alert.alert('Add some text', 'Frames need at least a short thought.');
+      Alert.alert('Add more details', 'Share a thought or attach an image before publishing.');
       return;
     }
 
@@ -63,6 +93,29 @@ export default function CreatePostScreen() {
 
     try {
       setSubmitting(true);
+      let uploadedImageId: Id<'_storage'> | undefined;
+
+      if (selectedImage) {
+        const uploadUrl = await generateUploadUrl();
+        const imageResponse = await fetch(selectedImage);
+        const blob = await imageResponse.blob();
+
+        const uploadResponse = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': blob.type || 'application/octet-stream',
+          },
+          body: blob,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error('Unable to upload image. Please try again.');
+        }
+
+        const { storageId } = (await uploadResponse.json()) as { storageId: Id<'_storage'> };
+        uploadedImageId = storageId;
+      }
+
       await createPostMutation({
         authorId,
         authorName,
@@ -70,12 +123,14 @@ export default function CreatePostScreen() {
         authorAvatar,
         content: content.trim(),
         frames,
+        imageStorageId: uploadedImageId,
         likeCount: 0,
         replyCount: 0,
         comments: [],
       });
       setContent('');
       setFrameInputs(['']);
+      setSelectedImage(null);
       Alert.alert('Published', 'Your frame is live in the feed.', [
         { text: 'View frame', onPress: () => undefined },
       ]);
@@ -93,7 +148,7 @@ export default function CreatePostScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-  <Text style={[styles.title, { color: colors.foreground }]}>New frame</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>New frame</Text>
 
         <View style={styles.field}>
           <Text style={[styles.label, { color: colors.mutedForeground }]}>What is happening?</Text>
@@ -137,11 +192,33 @@ export default function CreatePostScreen() {
           ))}
         </View>
 
-        <View style={styles.mediaHint}>
-          <Ionicons name="image-outline" size={18} color={colors.mutedForeground} />
-          <Text style={[styles.mediaHintText, { color: colors.mutedForeground }]}>
-            Media uploads arrive soon. For now, craft crisp text frames.
-          </Text>
+        <View style={styles.field}>
+          <Text style={[styles.label, { color: colors.mutedForeground }]}>Image</Text>
+          {selectedImage ? (
+            <View
+              style={[styles.imagePreviewContainer, { borderColor: colors.border, backgroundColor: colors.card }]}
+            >
+              <Image source={{ uri: selectedImage }} style={styles.imagePreview} />
+              <Pressable
+                style={[styles.removeImageButton, { borderColor: colors.border }]}
+                onPress={handleRemoveImage}
+                disabled={isSubmitting}
+              >
+                <Ionicons name="close" size={16} color={colors.mutedForeground} />
+                <Text style={[styles.removeImageLabel, { color: colors.mutedForeground }]}>Remove</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable
+              style={[styles.imagePickerButton, { borderColor: colors.border, backgroundColor: colors.card }]}
+              onPress={handlePickImage}
+              disabled={isSubmitting}
+            >
+              <Ionicons name="image-outline" size={20} color={colors.mutedForeground} />
+              <Text style={[styles.imagePickerLabel, { color: colors.mutedForeground }]}>Pick from library</Text>
+            </Pressable>
+          )}
+          <Text style={[styles.mediaHintText, { color: colors.mutedForeground }]}>JPEG or PNG up to 5 MB.</Text>
         </View>
       </ScrollView>
       <View style={[styles.toolbar, { borderTopColor: colors.border, backgroundColor: colors.card }]}
@@ -238,14 +315,43 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     fontSize: fontSize.md,
   },
-  mediaHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
   mediaHintText: {
     fontSize: fontSize.sm,
     lineHeight: 18,
+  },
+  imagePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderRadius: borderRadius.large,
+    paddingVertical: spacing.md,
+  },
+  imagePickerLabel: {
+    fontSize: fontSize.sm,
+    fontFamily: 'SpaceMono_700Bold',
+  },
+  imagePreviewContainer: {
+    borderWidth: 1,
+    borderRadius: borderRadius.large,
+    overflow: 'hidden',
+  },
+  imagePreview: {
+    width: '100%',
+    height: 240,
+  },
+  removeImageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    justifyContent: 'center',
+    borderTopWidth: 1,
+  },
+  removeImageLabel: {
+    fontFamily: 'SpaceMono_700Bold',
+    fontSize: fontSize.sm,
   },
   toolbar: {
     flexDirection: 'row',
