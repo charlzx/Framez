@@ -15,6 +15,7 @@ import { PostsHydrator } from './src/providers/PostsHydrator';
 import { UsersHydrator } from './src/providers/UsersHydrator';
 import { CurrentUserHydrator } from './src/providers/CurrentUserHydrator';
 import { PostPreferencesHydrator } from './src/providers/PostPreferencesHydrator';
+import { NotificationsHydrator } from './src/providers/NotificationsHydrator';
 
 const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 const CONVEX_URL = process.env.EXPO_PUBLIC_CONVEX_URL!;
@@ -103,6 +104,7 @@ export default function App() {
             <UsersHydrator />
             <PostsHydrator />
             <PostPreferencesHydrator />
+            <NotificationsHydrator />
             <AppNavigator />
           </SignedIn>
           <SignedOut>

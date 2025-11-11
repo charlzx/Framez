@@ -100,6 +100,7 @@ interface SettingsState {
   hiddenPostIds: string[];
   setHiddenPostIds: (ids: string[]) => void;
   notifications: NotificationItem[];
+  setNotifications: (notifications: NotificationItem[]) => void;
   recentSearches: string[];
   people: User[];
   takenUsernames: string[];
@@ -223,32 +224,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   hiddenPostIds: [],
   setHiddenPostIds: (ids) =>
     set({ hiddenPostIds: Array.from(new Set(ids)) }),
-  notifications: [
-    {
-      id: 'notif-1',
-      type: 'reply',
-      title: 'New reply from Maya',
-  description: '"Love how tactile this feels. Have you tried it on larger frames?"',
-      read: false,
-      timestamp: now - 2 * 60 * 1000,
-    },
-    {
-      id: 'notif-2',
-      type: 'like',
-      title: 'Lena liked your post',
-      description: 'Sunrise frame is now at 312 likes.',
-      read: false,
-      timestamp: now - 25 * 60 * 1000,
-    },
-    {
-      id: 'notif-3',
-      type: 'follow',
-      title: 'Ari started following you',
-  description: '"Can we chat about haptic palettes?"',
-      read: true,
-      timestamp: now - 4 * 60 * 60 * 1000,
-    },
-  ],
+  notifications: [],
+  setNotifications: (notifications) => set({ notifications }),
   recentSearches: ['responsive frame design', 'framez beta feedback', 'lena cho presets'],
   people: mockUsers,
   takenUsernames: mockUsers.map((user) => normalizeUsername(user.username ?? user.name)),

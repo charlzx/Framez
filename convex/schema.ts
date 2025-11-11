@@ -74,4 +74,21 @@ export default defineSchema({
     .index("by_post", ["postId"])
     .index("by_user", ["userId"])
     .index("by_post_user", ["postId", "userId"]),
+
+  notifications: defineTable({
+    userId: v.string(),
+    type: v.union(v.literal("like"), v.literal("reply"), v.literal("follow"), v.literal("system")),
+    title: v.string(),
+    description: v.string(),
+    read: v.boolean(),
+    timestamp: v.number(),
+    actorId: v.optional(v.string()),
+    actorName: v.optional(v.string()),
+    actorAvatar: v.optional(v.string()),
+    postId: v.optional(v.id("posts")),
+    commentId: v.optional(v.string()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_read", ["userId", "read"])
+    .index("by_timestamp", ["timestamp"]),
 });

@@ -2,6 +2,9 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import type { Id } from '../../convex/_generated/dataModel';
 import { useSettingsStore } from '../store/settingsStore';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { spacing, fontSize, borderRadius } from '../constants/spacing';
@@ -9,13 +12,23 @@ import { spacing, fontSize, borderRadius } from '../constants/spacing';
 export default function NotificationsScreen() {
   const colors = useThemeColors();
   const notifications = useSettingsStore((state) => state.notifications);
-  const markAllNotificationsRead = useSettingsStore((state) => state.markAllNotificationsRead);
-  const markNotificationRead = useSettingsStore((state) => state.markNotificationRead);
+  const currentUserId = useSettingsStore((state) => state.currentUserId);
+  const markNotificationReadMutation = useMutation(api.notifications.markAsRead);
+  const markAllAsReadMutation = useMutation(api.notifications.markAllAsRead);
 
   const hasUnread = useMemo(
     () => notifications.some((notification) => !notification.read),
     [notifications]
   );
+
+  const handleMarkAllAsRead = () => {
+    if (!currentUserId) return;
+    markAllAsReadMutation({ userId: currentUserId });
+  };
+
+  const handleMarkAsRead = (notificationId: string) => {
+    markNotificationReadMutation({ id: notificationId as Id<'notifications'> });
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -23,7 +36,7 @@ export default function NotificationsScreen() {
         <Text style={[styles.title, { color: colors.foreground }]}>Notifications</Text>
         {hasUnread ? (
           <Pressable
-            onPress={() => markAllNotificationsRead()}
+            onPress={handleMarkAllAsRead}
             style={styles.clearButton}
             accessibilityRole="button"
             accessibilityLabel="Mark all notifications as read"
@@ -48,7 +61,7 @@ export default function NotificationsScreen() {
           return (
             <Pressable
               style={[styles.notificationCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => markNotificationRead(item.id)}
+              onPress={() => handleMarkAsRead(item.id)}
             >
               <View style={[styles.iconBadge, { backgroundColor: colors.secondary }]}
               >

@@ -179,6 +179,23 @@ export const addComment = mutation({
       replyCount: (post.replyCount ?? comments.length) + 1,
     });
 
+    // Create notification for the post author (if not commenting on own post)
+    if (post.authorId !== args.authorId) {
+      await ctx.db.insert("notifications", {
+        userId: post.authorId,
+        type: "reply",
+        title: `${args.authorName} replied to your post`,
+        description: args.content.length > 60 ? `"${args.content.slice(0, 60)}..."` : `"${args.content}"`,
+        read: false,
+        timestamp: Date.now(),
+        actorId: args.authorId,
+        actorName: args.authorName,
+        actorAvatar: args.authorAvatar,
+        postId: args.postId,
+        commentId,
+      });
+    }
+
     return newComment;
   },
 });
@@ -207,6 +224,30 @@ export const toggleLike = mutation({
         userId: args.userId,
         createdAt: Date.now(),
       });
+
+      // Create notification for the post author (if not liking own post)
+      if (post.authorId !== args.userId) {
+        // Get user info for the liker
+        const liker = await ctx.db
+          .query("users")
+          .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.userId))
+          .unique();
+
+        if (liker) {
+          await ctx.db.insert("notifications", {
+            userId: post.authorId,
+            type: "like",
+            title: `${liker.displayName || liker.name} liked your post`,
+            description: post.content.length > 60 ? `"${post.content.slice(0, 60)}..."` : `"${post.content}"`,
+            read: false,
+            timestamp: Date.now(),
+            actorId: args.userId,
+            actorName: liker.displayName || liker.name,
+            actorAvatar: liker.avatarUrl,
+            postId: args.postId,
+          });
+        }
+      }
     }
 
     const likes = await ctx.db
