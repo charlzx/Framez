@@ -110,7 +110,7 @@ const PostCardComponent: React.FC<PostCardProps> = ({
               {post.authorName}
             </Text>
             <Text style={[styles.username, { color: colors.mutedForeground }]} numberOfLines={1}>
-              @{post.authorUsername ?? 'framezer'}
+              @{post.authorUsername || 'user'}
             </Text>
             <View style={styles.bullet}>
               <Text style={[styles.timestamp, { color: colors.mutedForeground }]}>•</Text>

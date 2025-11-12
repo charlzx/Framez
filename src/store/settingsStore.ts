@@ -52,8 +52,8 @@ const normalizeUsername = (value: string) => value.trim().toLowerCase();
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   themeMode: 'light',
   displayName: 'Framez User',
-  username: 'framezer',
-  description: 'Exploring creative ways to bring stories to life.',
+  username: '',
+  description: '',
   avatarUrl: '',
   currentUserId: '',
   posts: [],
@@ -129,7 +129,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
             ? people.find((person) => person.clerkId === state.currentUserId)?.displayName ?? state.displayName
             : state.displayName,
         username:
-          state.username === 'framezer'
+          !state.username || state.username === ''
             ? people.find((person) => person.clerkId === state.currentUserId)?.username ?? state.username
             : state.username,
       };

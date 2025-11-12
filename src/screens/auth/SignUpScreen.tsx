@@ -67,6 +67,7 @@ export default function SignUpScreen({ navigation }: any) {
   const handleSignUp = async () => {
     if (!isLoaded) return;
 
+    // Validate inputs before attempting signup
     if (!validateName(name)) {
       Alert.alert('Invalid Name', 'Please enter your full name.');
       return;
@@ -89,18 +90,109 @@ export default function SignUpScreen({ navigation }: any) {
 
     setLoading(true);
     try {
-      const completeSignUp = await signUp.create({
+      // Log input for debugging
+      console.log('Attempting sign up with:', { email, name });
+
+      // Create the sign up with Clerk
+      const result = await signUp.create({
         emailAddress: email,
         password,
         firstName: name.split(' ')[0],
         lastName: name.split(' ').slice(1).join(' ') || undefined,
       });
 
-      await setActive({ session: completeSignUp.createdSessionId });
+      console.log('✅ Sign up created successfully');
+      console.log('Sign up result status:', result.status);
+      console.log('Sign up result keys:', Object.keys(result));
+      console.log('Created session ID:', result.createdSessionId);
+
+      // Check if email verification is required
+      if (result.status === 'missing_requirements') {
+        console.log('Email verification required');
+        // Prepare email verification
+        await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+        
+        // Show alert that verification email was sent
+        Alert.alert(
+          'Verify your email',
+          'We sent you a verification code. Please check your email and enter the code.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Navigate to a verification screen or show input for code
+                // For now, we'll show a prompt
+                navigation.navigate('Login');
+              },
+            },
+          ]
+        );
+      } else if (result.createdSessionId) {
+        // If session was created directly, activate it
+        console.log('Attempting to activate session:', result.createdSessionId);
+        try {
+          await setActive({ session: result.createdSessionId });
+          console.log('✅ Session activated successfully');
+        } catch (activationErr: any) {
+          console.error('❌ Session activation failed:', activationErr);
+          console.error('Activation error details:', JSON.stringify(activationErr, null, 2));
+          throw activationErr; // Re-throw to be caught by outer catch
+        }
+      } else {
+        // Handle other statuses
+        console.warn('Unexpected sign up status:', result.status);
+        Alert.alert(
+          'Sign Up Incomplete',
+          'Please check your email to complete the registration process.'
+        );
+      }
     } catch (err: any) {
-      const errorMessage = err.errors?.[0]?.longMessage || err.errors?.[0]?.message || 'Sign up failed';
+      // Comprehensive error logging
+      console.error('=== SIGN UP ERROR START ===');
+      console.error('Error type:', typeof err);
+      console.error('Error constructor:', err?.constructor?.name);
+      console.error('Error message:', err?.message);
+      console.error('Error string:', String(err));
+      console.error('Error JSON:', JSON.stringify(err, null, 2));
+      console.error('Error keys:', err ? Object.keys(err) : 'no keys');
+      console.error('Error errors array:', err?.errors);
+      console.error('SignUp status after error:', signUp?.status);
+      console.error('SignUp unverified fields:', signUp?.unverifiedFields);
+      console.error('=== SIGN UP ERROR END ===');
+      
+      // Extract error details from Clerk error structure
+      let errorMessage = 'Sign up failed. Please try again.';
+      let foundError = false;
+      
+      // Try multiple ways to extract the error
+      if (err?.errors && Array.isArray(err.errors) && err.errors.length > 0) {
+        const firstError = err.errors[0];
+        foundError = true;
+        
+        // Check for specific error codes
+        if (firstError.code === 'form_password_pwned') {
+          errorMessage = 'This password has been found in a data breach and cannot be used. Please choose a different password.';
+        } else if (firstError.code === 'form_identifier_exists') {
+          errorMessage = 'An account with this email already exists. Please sign in instead.';
+        } else if (firstError.code === 'form_password_length_too_short') {
+          errorMessage = 'Password is too short. Please use at least 8 characters.';
+        } else if (firstError.code === 'form_param_format_invalid') {
+          errorMessage = firstError.longMessage || firstError.message || 'Invalid input format.';
+        } else {
+          errorMessage = firstError.longMessage || firstError.message || errorMessage;
+        }
+      } else if (err?.message) {
+        foundError = true;
+        errorMessage = err.message;
+      } else if (err?.toString && typeof err.toString === 'function') {
+        const errStr = err.toString();
+        if (errStr !== '[object Object]') {
+          foundError = true;
+          errorMessage = errStr;
+        }
+      }
+      
       Alert.alert('Sign Up Error', errorMessage);
-      console.error('Sign up error:', JSON.stringify(err, null, 2));
     } finally {
       setLoading(false);
     }

@@ -324,8 +324,8 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
         initialUsername={username}
         initialDescription={description}
         initialAvatarUrl={avatarUrl}
+        currentClerkId={currentUserId}
         onSave={handleSaveProfile}
-        onAttemptUsernameChange={attemptUsernameChange}
       />
 
       <PostOptionsModal

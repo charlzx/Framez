@@ -42,12 +42,48 @@ export const store = mutation({
       return existingUser._id;
     } else {
       // Create new user
-      const userId = await ctx.db.insert("users", {
+      // If no username was provided, generate one from the first word of the displayName/name
+      let finalUsername: string | undefined = args.username ?? undefined;
+
+      if (!finalUsername) {
+        const source = (args.displayName ?? args.name ?? '').trim();
+        const firstWord = source.split(/\s+/)[0] ?? '';
+        // Normalize: lowercase and keep only alphanumeric characters
+        let candidate = firstWord.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+        if (candidate.length > 0) {
+          // Ensure uniqueness by checking the by_username index
+          let exists = await ctx.db
+            .query('users')
+            .withIndex('by_username', (q) => q.eq('username', candidate))
+            .unique();
+
+          let suffix = 1;
+          while (exists) {
+            const numbered = `${candidate}${suffix}`;
+            exists = await ctx.db
+              .query('users')
+              .withIndex('by_username', (q) => q.eq('username', numbered))
+              .unique();
+            if (!exists) {
+              candidate = numbered;
+              break;
+            }
+            suffix += 1;
+          }
+
+          finalUsername = candidate;
+        } else {
+          finalUsername = undefined;
+        }
+      }
+
+      const userId = await ctx.db.insert('users', {
         clerkId: args.clerkId,
         email: args.email,
         name: args.name,
         displayName: args.displayName ?? args.name,
-        username: args.username,
+        username: finalUsername,
         bio: args.bio,
         avatarUrl: args.avatarUrl,
         avatarStorageId: args.avatarStorageId,
@@ -78,7 +114,28 @@ export const updateProfile = mutation({
     }
 
     const nextDisplayName = args.displayName ?? user.displayName ?? user.name;
-    const nextUsername = args.username ?? user.username ?? undefined;
+    
+    // Normalize username if provided (server-side validation)
+    let nextUsername = user.username ?? undefined;
+    if (args.username !== undefined) {
+      const normalized = args.username.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (normalized.length >= 3) {
+        // Check if username is available (excluding current user)
+        const existingUser = await ctx.db
+          .query('users')
+          .withIndex('by_username', (q) => q.eq('username', normalized))
+          .unique();
+        
+        if (existingUser && existingUser.clerkId !== args.clerkId) {
+          throw new Error('Username is already taken');
+        }
+        
+        nextUsername = normalized;
+      } else if (normalized.length > 0) {
+        throw new Error('Username must be at least 3 characters');
+      }
+    }
+    
     const nextBio = args.bio ?? user.bio;
     const nextAvatarStorageId = args.avatarStorageId ?? user.avatarStorageId;
     
@@ -250,5 +307,51 @@ export const getById = query({
       ...user,
       avatarUrl: avatarUrl ?? undefined,
     };
+  },
+});
+
+// Check if a username is available (case-insensitive)
+export const isUsernameAvailable = query({
+  args: { 
+    username: v.string(),
+    currentClerkId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Normalize username (lowercase, alphanumeric only)
+    const normalized = args.username.toLowerCase().replace(/[^a-z0-9]/g, '');
+    
+    // Empty or invalid usernames are not available
+    if (normalized.length === 0) {
+      return { available: false, message: 'Username must contain at least one letter or number' };
+    }
+
+    // Check minimum length
+    if (normalized.length < 3) {
+      return { available: false, message: 'Username must be at least 3 characters long' };
+    }
+
+    // Check maximum length
+    if (normalized.length > 30) {
+      return { available: false, message: 'Username must be 30 characters or less' };
+    }
+
+    // Check if username is already taken
+    const existingUser = await ctx.db
+      .query('users')
+      .withIndex('by_username', (q) => q.eq('username', normalized))
+      .unique();
+    
+    // If no user found, it's available
+    if (!existingUser) {
+      return { available: true, normalized };
+    }
+
+    // If the existing user is the current user, it's available (they're keeping their username)
+    if (args.currentClerkId && existingUser.clerkId === args.currentClerkId) {
+      return { available: true, normalized };
+    }
+
+    // Username is taken by another user
+    return { available: false, message: 'This username is already taken' };
   },
 });

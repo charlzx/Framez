@@ -125,7 +125,7 @@ export default function PostDetailScreen() {
 
 		const authorId = currentUserId || 'unknown-user';
 		const authorName = displayName || 'Framez user';
-		const authorUsername = username || 'framezer';
+		const authorUsername = username || undefined;
 		const authorAvatar = avatarUrl;
 
 		addCommentMutation({
@@ -205,7 +205,7 @@ export default function PostDetailScreen() {
 								</Pressable>
 								<View style={styles.commentAuthor}>
 									<Text style={[styles.commentName, { color: colors.foreground }]}>{item.authorName}</Text>
-									<Text style={[styles.commentMeta, { color: colors.mutedForeground }]}>@{item.authorUsername ?? 'framezer'}</Text>
+									<Text style={[styles.commentMeta, { color: colors.mutedForeground }]}>@{item.authorUsername || 'user'}</Text>
 								</View>
 							</View>
 							<Text style={[styles.commentBody, { color: colors.foreground }]}>{item.content}</Text>

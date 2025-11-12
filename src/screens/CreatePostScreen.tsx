@@ -131,7 +131,7 @@ export default function CreatePostScreen() {
     }
 
     const authorName = user?.fullName?.trim() || displayName || 'Framez user';
-    const authorUsername = user?.username || username || 'framezer';
+    const authorUsername = user?.username || username || undefined;
     const authorAvatar = user?.imageUrl || avatarUrl;
 
     try {

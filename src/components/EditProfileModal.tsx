@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   Modal,
   View,
@@ -16,7 +16,7 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { spacing, fontSize, borderRadius } from '../constants/spacing';
-import { useMutation } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
 import { optimizeImage, validateImage, generateThumbnail } from '../utils/imageOptimization';
@@ -28,13 +28,13 @@ type EditProfileModalProps = {
   initialUsername: string;
   initialDescription: string;
   initialAvatarUrl: string;
+  currentClerkId: string;
   onSave: (payload: {
     displayName: string;
     description: string;
     avatarStorageId?: Id<"_storage">;
     username: string;
   }) => Promise<{ success: boolean; message?: string }>;
-  onAttemptUsernameChange: (value: string) => { success: boolean; message?: string };
 };
 
 const EditProfileModal: React.FC<EditProfileModalProps> = ({
@@ -44,8 +44,8 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
   initialUsername,
   initialDescription,
   initialAvatarUrl,
+  currentClerkId,
   onSave,
-  onAttemptUsernameChange,
 }) => {
   const colors = useThemeColors();
   const [displayName, setDisplayName] = useState(initialDisplayName);
@@ -54,11 +54,54 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
   const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl);
   const [newAvatarUri, setNewAvatarUri] = useState<string | null>(null);
   const [usernameMessage, setUsernameMessage] = useState<string | null>(null);
-  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'error'>('idle');
+  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'error'>('idle');
   const [isUploading, setIsUploading] = useState(false);
   const [isOptimizingImage, setIsOptimizingImage] = useState(false);
+  const [debouncedUsername, setDebouncedUsername] = useState(initialUsername);
   
   const generateUploadUrl = useMutation(api.users.generateUploadUrl);
+
+  // Check username availability with debouncing
+  const normalizedUsername = username.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const hasUsernameChanged = normalizedUsername !== initialUsername.toLowerCase();
+  
+  const usernameAvailability = useQuery(
+    api.users.isUsernameAvailable,
+    hasUsernameChanged && normalizedUsername.length >= 3
+      ? { username: normalizedUsername, currentClerkId }
+      : 'skip'
+  );
+
+  // Update debounced username after delay
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedUsername(username);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [username]);
+
+  // Update username validation status based on query result
+  useEffect(() => {
+    if (!hasUsernameChanged || normalizedUsername.length < 3) {
+      setUsernameStatus('idle');
+      setUsernameMessage(null);
+      return;
+    }
+
+    if (usernameAvailability === undefined) {
+      setUsernameStatus('checking');
+      setUsernameMessage('Checking availability...');
+      return;
+    }
+
+    if (usernameAvailability.available) {
+      setUsernameStatus('available');
+      setUsernameMessage('✓ Username is available');
+    } else {
+      setUsernameStatus('error');
+      setUsernameMessage(usernameAvailability.message || 'Username is not available');
+    }
+  }, [usernameAvailability, hasUsernameChanged, normalizedUsername]);
 
   const normalize = (value: string) => value.trim().toLowerCase();
 
@@ -146,25 +189,22 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
   };
 
   const handleSave = async () => {
+    // Block save if username validation is in progress or failed
+    if (usernameStatus === 'checking') {
+      Alert.alert('Please wait', 'Still checking username availability...');
+      return;
+    }
+
+    if (usernameStatus === 'error') {
+      Alert.alert('Invalid Username', usernameMessage || 'Please choose a different username.');
+      return;
+    }
+
     setIsUploading(true);
     try {
       const trimmedDisplayName = displayName.trim() || initialDisplayName;
       const trimmedDescription = description.trim();
-      const normalizedInitial = normalize(initialUsername);
-      const sanitizedUsername = normalize(username);
-      const hasUsernameChanged = sanitizedUsername !== normalizedInitial;
-
-      if (hasUsernameChanged) {
-        const result = onAttemptUsernameChange(sanitizedUsername);
-        if (!result.success) {
-          setUsernameStatus('error');
-          setUsernameMessage(result.message ?? 'Unable to update username.');
-          setIsUploading(false);
-          return;
-        }
-      }
-
-      setUsername(sanitizedUsername);
+      const sanitizedUsername = normalizedUsername || initialUsername;
 
       // Upload new avatar if selected
       let avatarStorageId: Id<"_storage"> | undefined;
@@ -255,7 +295,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
                 style={[styles.input, { backgroundColor: colors.background, color: colors.foreground }]}
                 autoCapitalize="none"
                 autoCorrect={false}
-                maxLength={20}
+                maxLength={30}
               />
               {usernameMessage ? (
                 <Text
@@ -265,6 +305,8 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
                       color:
                         usernameStatus === 'error'
                           ? colors.destructive
+                          : usernameStatus === 'available'
+                          ? colors.success
                           : colors.mutedForeground,
                     },
                   ]}
