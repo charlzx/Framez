@@ -1,6 +1,6 @@
 # Framez 📱
 
-A modern mobile social application built with React Native that allows users to share posts with text and images. Inspired by Instagram's clean design, Framez demonstrates real-time data handling, secure authentication, and responsive mobile UI/UX.
+A modern mobile social application built with React Native that allows users to share posts with text and images. Framez demonstrates real-time data handling, secure authentication, and responsive mobile UI/UX.
 
 ## 🎯 Project Overview
 
@@ -8,7 +8,7 @@ Framez is a Frontend Stage 4 task showcasing the ability to build a production-r
 - Secure user authentication
 - Real-time data synchronization
 - Image upload and storage
-- Clean, Instagram-inspired UI
+- Clean, minimal UI design
 - Cross-platform support (iOS & Android)
 
 ## ✨ Features
@@ -31,7 +31,7 @@ Framez is a Frontend Stage 4 task showcasing the ability to build a production-r
 - **Activity**: Track your social activity
 
 ### 🎨 Design
-- Instagram-inspired clean and minimal UI
+- Clean and minimal UI design
 - Smooth animations and transitions
 - Responsive layout for all screen sizes
 - Dark text on light background for readability
@@ -142,7 +142,7 @@ npm run android
 ### Color Palette
 - **Primary**: `#000000` (Black)
 - **Secondary**: `#FFFFFF` (White)
-- **Accent**: `#0095F6` (Instagram Blue)
+- **Accent**: `#0095F6` (Blue)
 - **Text**: `#262626` (Dark Gray)
 - **Border**: `#DBDBDB` (Light Gray)
 - **Background**: `#FAFAFA` (Off White)
