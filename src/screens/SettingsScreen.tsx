@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Switch, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, Switch, Pressable, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@clerk/clerk-expo';
@@ -38,8 +38,12 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.content}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={[styles.header, { color: colors.foreground }]}>Settings</Text>
 
         <View style={[styles.section, { borderColor: colors.border }]}>
@@ -80,7 +84,7 @@ export default function SettingsScreen() {
             <Text style={[styles.logoutLabel, { color: colors.destructiveForeground }]}>Log out</Text>
           </Pressable>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -89,8 +93,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  scrollView: {
+    flex: 1,
+  },
   content: {
     paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
     paddingBottom: spacing.xxl,
     gap: spacing.lg,
   },

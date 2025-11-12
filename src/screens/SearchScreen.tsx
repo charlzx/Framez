@@ -40,6 +40,7 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
   const recentSearches = useSettingsStore((state) => state.recentSearches);
   const addRecentSearch = useSettingsStore((state) => state.addRecentSearch);
   const hiddenPostIds = useSettingsStore((state) => state.hiddenPostIds);
+  const removePost = useSettingsStore((state) => state.removePost);
   const deletePostMutation = useMutation(api.posts.deletePost);
   const currentUserId = useSettingsStore((state) => state.currentUserId);
   const { toggleLike: toggleLikeOnServer, hidePost: hidePostOnServer } = usePostInteractions();
@@ -153,6 +154,7 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
           onPress: async () => {
             try {
               await deletePostMutation({ id: postId as Id<'posts'>, requesterId: currentUserId });
+              removePost(postId);
             } catch (error) {
               Alert.alert(
                 'Unable to delete',
@@ -163,7 +165,7 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
         },
       ]);
     },
-    [currentUserId, deletePostMutation]
+    [currentUserId, deletePostMutation, removePost]
   );
 
   const selectedPost = useMemo(
@@ -176,11 +178,10 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
       return;
     }
 
-    handleCloseOptions();
     hidePostOnServer(selectedPostId, selectedPost.authorId).catch((error) => {
       Alert.alert('Unable to hide', error instanceof Error ? error.message : 'Please try again.');
     });
-  }, [handleCloseOptions, hidePostOnServer, selectedPost, selectedPostId]);
+  }, [hidePostOnServer, selectedPost, selectedPostId]);
   const handleToggleLike = useCallback(
     (postId: string) => {
       toggleLikeOnServer(postId).catch((error) => {
@@ -192,9 +193,11 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
 
 
   const handleDeleteSelected = useCallback(() => {
-    if (selectedPostId) {
-      confirmDelete(selectedPostId);
+    if (!selectedPostId) {
+      return;
     }
+
+    confirmDelete(selectedPostId);
   }, [confirmDelete, selectedPostId]);
 
   return (
@@ -262,15 +265,6 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
                 </Pressable>
               ))}
             </View>
-
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Trending categories</Text>
-            <View style={styles.chipRow}>
-              {['frames', 'motion design', 'media workflow', 'photo presets'].map((topic) => (
-                <View key={topic} style={[styles.chip, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}>
-                  <Text style={[styles.chipLabel, { color: colors.foreground }]}>{topic}</Text>
-                </View>
-              ))}
-            </View>
           </View>
         ) : (
           <View style={styles.resultsContainer}>
@@ -313,7 +307,7 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
                       style={[styles.userCard, { borderColor: colors.border, backgroundColor: colors.card }]}
                     >
                       <Pressable
-                        onPress={() => handleOpenProfile(person._id)}
+                        onPress={() => handleOpenProfile(person.clerkId ?? person._id)}
                         accessibilityRole="button"
                         accessibilityLabel={`View ${person.displayName}'s profile`}
                       >
@@ -334,7 +328,7 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
                       <Pressable
                         style={[styles.followButton, { backgroundColor: colors.secondary }]}
                         accessibilityRole="button"
-                        onPress={() => handleOpenProfile(person._id)}
+                        onPress={() => handleOpenProfile(person.clerkId ?? person._id)}
                       >
                         <Text style={[styles.followLabel, { color: colors.secondaryForeground }]}>View</Text>
                       </Pressable>

@@ -39,6 +39,7 @@ export default function PostDetailScreen() {
 	const username = useSettingsStore((state) => state.username);
 	const avatarUrl = useSettingsStore((state) => state.avatarUrl);
 	const currentUserId = useSettingsStore((state) => state.currentUserId);
+	const removePost = useSettingsStore((state) => state.removePost);
 	const deletePostMutation = useMutation(api.posts.deletePost);
 	const addCommentMutation = useMutation(api.posts.addComment);
   const { toggleLike: toggleLikeOnServer, hidePost: hidePostOnServer } = usePostInteractions();
@@ -88,6 +89,7 @@ export default function PostDetailScreen() {
 				onPress: async () => {
 					try {
 						await deletePostMutation({ id: post._id as Id<'posts'>, requesterId: currentUserId });
+						removePost(post._id);
 						setOptionsVisible(false);
 						navigation.goBack();
 					} catch (error) {
@@ -99,7 +101,7 @@ export default function PostDetailScreen() {
 				},
 			},
 		]);
-	}, [currentUserId, deletePostMutation, navigation, post]);
+	}, [currentUserId, deletePostMutation, navigation, post, removePost]);
 
 	const handleToggleLike = useCallback(
 		(postIdValue: string) => {

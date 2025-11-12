@@ -43,10 +43,12 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
   const people = useSettingsStore((state) => state.people);
   const hiddenPostIds = useSettingsStore((state) => state.hiddenPostIds);
   const deletePostMutation = useMutation(api.posts.deletePost);
+  const updateProfileMutation = useMutation(api.users.updateProfile);
   const { toggleLike: toggleLikeOnServer, hidePost: hidePostOnServer } = usePostInteractions();
+  const removePost = useSettingsStore((state) => state.removePost);
 
   const currentUser = useMemo(
-    () => people.find((person) => person._id === currentUserId),
+    () => people.find((person) => person.clerkId === currentUserId),
     [currentUserId, people]
   );
 
@@ -82,11 +84,10 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
       return;
     }
 
-    handleCloseOptions();
     hidePostOnServer(selectedPostId, selectedPost.authorId).catch((error) => {
       Alert.alert('Unable to hide', error instanceof Error ? error.message : 'Please try again.');
     });
-  }, [handleCloseOptions, hidePostOnServer, selectedPost, selectedPostId]);
+  }, [hidePostOnServer, selectedPost, selectedPostId]);
 
   const confirmDelete = useCallback(
     (postId: string) => {
@@ -103,6 +104,7 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
           onPress: async () => {
             try {
               await deletePostMutation({ id: postId as Id<'posts'>, requesterId: currentUserId });
+              removePost(postId);
             } catch (error) {
               Alert.alert(
                 'Unable to delete',
@@ -113,14 +115,49 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
         },
       ]);
     },
-    [currentUserId, deletePostMutation]
+    [currentUserId, deletePostMutation, removePost]
   );
 
   const handleDeleteSelected = useCallback(() => {
-    if (selectedPostId) {
-      confirmDelete(selectedPostId);
+    if (!selectedPostId) {
+      return;
     }
+
+    confirmDelete(selectedPostId);
   }, [confirmDelete, selectedPostId]);
+
+  const handleSaveProfile = useCallback(
+    async ({ displayName: nextDisplayName, description: nextDescription, avatarStorageId, username: nextUsername }: { displayName: string; description: string; avatarStorageId?: Id<"_storage">; username: string }) => {
+      if (!currentUserId) {
+        return { success: false, message: 'You need to be signed in to update your profile.' };
+      }
+
+      try {
+        await updateProfileMutation({
+          clerkId: currentUserId,
+          displayName: nextDisplayName,
+          username: nextUsername,
+          bio: nextDescription,
+          avatarStorageId,
+        });
+
+        // Note: avatarUrl will be resolved by backend, local state will be updated by hydrator
+        updateProfile({
+          displayName: nextDisplayName,
+          description: nextDescription,
+        });
+
+        return { success: true };
+      } catch (error) {
+        console.error('Error updating profile:', error);
+        return {
+          success: false,
+          message: error instanceof Error ? error.message : 'Unable to update profile.',
+        };
+      }
+    },
+    [currentUserId, updateProfile, updateProfileMutation]
+  );
 
   const handleOpenPost = useCallback(
     (postId: string) => {
@@ -287,7 +324,7 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
         initialUsername={username}
         initialDescription={description}
         initialAvatarUrl={avatarUrl}
-        onSave={updateProfile}
+        onSave={handleSaveProfile}
         onAttemptUsernameChange={attemptUsernameChange}
       />
 

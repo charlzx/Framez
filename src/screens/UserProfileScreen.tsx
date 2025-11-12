@@ -31,17 +31,21 @@ export default function UserProfileScreen() {
 	const people = useSettingsStore((state) => state.people);
 	const posts = useSettingsStore((state) => state.posts);
 	const likedPostIds = useSettingsStore((state) => state.likedPostIds);
+	const removePost = useSettingsStore((state) => state.removePost);
 	const deletePostMutation = useMutation(api.posts.deletePost);
   const { toggleLike: toggleLikeOnServer, hidePost: hidePostOnServer } = usePostInteractions();
 
 	const [optionsVisible, setOptionsVisible] = useState(false);
 	const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
-	const person = useMemo(() => people.find((entry) => entry._id === userId) ?? null, [people, userId]);
+	const person = useMemo(
+		() => people.find((entry) => entry.clerkId === userId || entry._id === userId) ?? null,
+		[people, userId]
+	);
 
 	const userPosts = useMemo(
-		() => posts.filter((post) => post.authorId === userId),
-		[posts, userId]
+		() => posts.filter((post) => person && (post.authorId === person.clerkId || post.authorId === userId)),
+		[posts, userId, person]
 	);
 
 		const selectedPost = useMemo(
@@ -74,20 +78,18 @@ export default function UserProfileScreen() {
 					onPress: async () => {
 						try {
 							await deletePostMutation({ id: postId as Id<'posts'>, requesterId: currentUserId });
+							removePost(postId);
 						} catch (error) {
 							Alert.alert(
 								'Unable to delete',
 								error instanceof Error ? error.message : 'Please try again.'
 							);
-						} finally {
-							setOptionsVisible(false);
-							setSelectedPostId(null);
 						}
 					},
 				},
 			]);
 		},
-		[currentUserId, deletePostMutation]
+		[currentUserId, deletePostMutation, removePost]
 	);
 
 		const handleHideSelected = useCallback(() => {
@@ -95,16 +97,17 @@ export default function UserProfileScreen() {
 				return;
 			}
 
-			handleCloseOptions();
 			hidePostOnServer(selectedPostId, selectedPost.authorId).catch((error) => {
 				Alert.alert('Unable to hide', error instanceof Error ? error.message : 'Please try again.');
 			});
-		}, [handleCloseOptions, hidePostOnServer, selectedPost, selectedPostId]);
+		}, [hidePostOnServer, selectedPost, selectedPostId]);
 
 	const handleDeleteSelected = useCallback(() => {
-		if (selectedPostId) {
-			confirmDelete(selectedPostId);
+		if (!selectedPostId) {
+			return;
 		}
+
+		confirmDelete(selectedPostId);
 	}, [confirmDelete, selectedPostId]);
 
 		const handleOpenPost = useCallback(

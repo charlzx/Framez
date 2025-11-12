@@ -39,8 +39,11 @@ const PostOptionsModal: React.FC<PostOptionsModalProps> = ({
               style={styles.optionRow}
               accessibilityRole="button"
               onPress={() => {
-                onHide();
                 onClose();
+                // Small delay to let modal close before action
+                setTimeout(() => {
+                  onHide();
+                }, 100);
               }}
             >
               <Ionicons name="eye-off-outline" size={20} color={colors.mutedForeground} />
@@ -55,8 +58,11 @@ const PostOptionsModal: React.FC<PostOptionsModalProps> = ({
               style={styles.optionRow}
               accessibilityRole="button"
               onPress={() => {
-                onDelete();
                 onClose();
+                // Small delay to let modal close before showing alert
+                setTimeout(() => {
+                  onDelete();
+                }, 100);
               }}
             >
               <Ionicons name="trash-outline" size={20} color={colors.destructive} />

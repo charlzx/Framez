@@ -9,7 +9,8 @@ export default defineSchema({
     displayName: v.optional(v.string()),
     username: v.optional(v.string()),
     bio: v.optional(v.string()),
-    avatarUrl: v.optional(v.string()),
+    avatarUrl: v.optional(v.string()), // Resolved from avatarStorageId
+    avatarStorageId: v.optional(v.id("_storage")),
     followersCount: v.optional(v.number()),
     followingCount: v.optional(v.number()),
   })

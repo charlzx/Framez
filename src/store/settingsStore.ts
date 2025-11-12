@@ -92,6 +92,7 @@ interface SettingsState {
   currentUserId: string;
   posts: Post[];
   setPosts: (posts: Post[]) => void;
+  removePost: (postId: string) => void;
   setCurrentUserProfile: (payload: Partial<User> & { clerkId?: string }) => void;
   setPeople: (people: User[]) => void;
   likedPostIds: string[];
@@ -130,6 +131,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   currentUserId: CURRENT_USER_ID,
   posts: [],
   setPosts: (posts) => set({ posts }),
+  removePost: (postId) =>
+    set((state) => ({
+      posts: state.posts.filter((post) => post._id !== postId),
+      likedPostIds: state.likedPostIds.filter((id) => id !== postId),
+      hiddenPostIds: state.hiddenPostIds.filter((id) => id !== postId),
+    })),
   setCurrentUserProfile: (payload) =>
     set((state) => {
       const clerkId = payload.clerkId ?? state.currentUserId;
@@ -226,7 +233,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     set({ hiddenPostIds: Array.from(new Set(ids)) }),
   notifications: [],
   setNotifications: (notifications) => set({ notifications }),
-  recentSearches: ['responsive frame design', 'framez beta feedback', 'lena cho presets'],
+  recentSearches: [],
   people: mockUsers,
   takenUsernames: mockUsers.map((user) => normalizeUsername(user.username ?? user.name)),
   toggleTheme: () =>
@@ -240,7 +247,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       description: payload.description ?? state.description,
       avatarUrl: payload.avatarUrl ?? state.avatarUrl,
       people: state.people.map((person) =>
-        person._id === state.currentUserId
+        person.clerkId === state.currentUserId
           ? {
               ...person,
               displayName: payload.displayName ?? state.displayName,
@@ -280,7 +287,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         .filter((name) => name !== current)
         .concat(next),
       people: state.people.map((person) =>
-        person._id === state.currentUserId
+        person.clerkId === state.currentUserId
           ? { ...person, username: next }
           : person
       ),

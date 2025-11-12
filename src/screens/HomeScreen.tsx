@@ -40,6 +40,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const likedPostIds = useSettingsStore((state) => state.likedPostIds);
   const notifications = useSettingsStore((state) => state.notifications);
   const hiddenPostIds = useSettingsStore((state) => state.hiddenPostIds);
+  const removePost = useSettingsStore((state) => state.removePost);
   const deletePostMutation = useMutation(api.posts.deletePost);
   const { currentUserId, toggleLike: toggleLikeOnServer, hidePost: hidePostOnServer } =
     usePostInteractions();
@@ -148,6 +149,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           onPress: async () => {
             try {
               await deletePostMutation({ id: postId as Id<'posts'>, requesterId: currentUserId });
+              removePost(postId);
             } catch (error) {
               Alert.alert('Unable to delete', error instanceof Error ? error.message : 'Please try again.');
             }
@@ -155,7 +157,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         },
       ]);
     },
-    [currentUserId, deletePostMutation]
+    [currentUserId, deletePostMutation, removePost]
   );
 
   const selectedPost = useMemo(
@@ -168,16 +170,17 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       return;
     }
 
-    handleCloseOptions();
     hidePostOnServer(selectedPostId, selectedPost.authorId).catch((error) => {
       Alert.alert('Unable to hide', error instanceof Error ? error.message : 'Please try again.');
     });
-  }, [handleCloseOptions, hidePostOnServer, selectedPost, selectedPostId]);
+  }, [hidePostOnServer, selectedPost, selectedPostId]);
 
   const handleDeleteSelected = useCallback(() => {
-    if (selectedPostId) {
-      confirmDelete(selectedPostId);
+    if (!selectedPostId) {
+      return;
     }
+
+    confirmDelete(selectedPostId);
   }, [confirmDelete, selectedPostId]);
 
   const renderHeader = useCallback(() => (

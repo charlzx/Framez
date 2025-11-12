@@ -33,7 +33,6 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.headerRow}>
-        <Text style={[styles.title, { color: colors.foreground }]}>Notifications</Text>
         {hasUnread ? (
           <Pressable
             onPress={handleMarkAllAsRead}

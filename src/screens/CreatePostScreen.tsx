@@ -14,11 +14,14 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useUser } from '@clerk/clerk-expo';
 import { useMutation } from 'convex/react';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { Id } from '../../convex/_generated/dataModel';
 import { api } from '../../convex/_generated/api';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { useSettingsStore } from '../store/settingsStore';
 import { spacing, fontSize, borderRadius } from '../constants/spacing';
+import type { HomeStackParamList } from '../navigation/HomeStack';
 
 export default function CreatePostScreen() {
   const colors = useThemeColors();
@@ -30,6 +33,7 @@ export default function CreatePostScreen() {
   const { user } = useUser();
   const createPostMutation = useMutation(api.posts.create);
   const generateUploadUrl = useMutation(api.posts.generateUploadUrl);
+  const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
 
   const [content, setContent] = useState('');
   const [frameInputs, setFrameInputs] = useState<string[]>(['']);
@@ -131,9 +135,7 @@ export default function CreatePostScreen() {
       setContent('');
       setFrameInputs(['']);
       setSelectedImage(null);
-      Alert.alert('Published', 'Your frame is live in the feed.', [
-        { text: 'View frame', onPress: () => undefined },
-      ]);
+      navigation.navigate('HomeFeed');
     } catch (error) {
       Alert.alert('Unable to publish', (error as Error).message);
     } finally {

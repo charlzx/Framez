@@ -26,9 +26,10 @@ export default function HomeStackNavigator() {
         headerStyle: {
           backgroundColor: colors.background,
         },
-        headerTintColor: colors.foreground,
+        headerTintColor: colors.primary,
         headerTitleStyle: {
           fontFamily: 'SpaceMono_700Bold',
+          color: colors.foreground,
         },
         contentStyle: {
           backgroundColor: colors.background,

@@ -9,9 +9,16 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Alert,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { spacing, fontSize, borderRadius } from '../constants/spacing';
+import { useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { Id } from '../../convex/_generated/dataModel';
 
 type EditProfileModalProps = {
   visible: boolean;
@@ -20,7 +27,12 @@ type EditProfileModalProps = {
   initialUsername: string;
   initialDescription: string;
   initialAvatarUrl: string;
-  onSave: (payload: { displayName: string; description: string; avatarUrl: string }) => void;
+  onSave: (payload: {
+    displayName: string;
+    description: string;
+    avatarStorageId?: Id<"_storage">;
+    username: string;
+  }) => Promise<{ success: boolean; message?: string }>;
   onAttemptUsernameChange: (value: string) => { success: boolean; message?: string };
 };
 
@@ -39,8 +51,12 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
   const [username, setUsername] = useState(initialUsername);
   const [description, setDescription] = useState(initialDescription);
   const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl);
+  const [newAvatarUri, setNewAvatarUri] = useState<string | null>(null);
   const [usernameMessage, setUsernameMessage] = useState<string | null>(null);
   const [usernameStatus, setUsernameStatus] = useState<'idle' | 'error'>('idle');
+  const [isUploading, setIsUploading] = useState(false);
+  
+  const generateUploadUrl = useMutation(api.users.generateUploadUrl);
 
   const normalize = (value: string) => value.trim().toLowerCase();
 
@@ -50,8 +66,10 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       setUsername(initialUsername);
       setDescription(initialDescription);
       setAvatarUrl(initialAvatarUrl);
+      setNewAvatarUri(null);
       setUsernameMessage(null);
       setUsernameStatus('idle');
+      setIsUploading(false);
     }
   }, [initialAvatarUrl, initialDescription, initialDisplayName, initialUsername, visible]);
 
@@ -61,34 +79,107 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
     setUsernameStatus('idle');
   };
 
-  const handleSave = () => {
-    const trimmedDisplayName = displayName.trim() || initialDisplayName;
-    const trimmedDescription = description.trim();
-    const trimmedAvatarUrl = avatarUrl.trim() || initialAvatarUrl;
-    const normalizedInitial = normalize(initialUsername);
-    const sanitizedUsername = normalize(username);
-    const hasUsernameChanged = sanitizedUsername !== normalizedInitial;
+  // Handle picking an image from the device
+  const handlePickImage = async () => {
+    try {
+      // Request permission to access media library
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-    if (hasUsernameChanged) {
-      const result = onAttemptUsernameChange(sanitizedUsername);
-      if (!result.success) {
-        setUsernameStatus('error');
-        setUsernameMessage(result.message ?? 'Unable to update username.');
+      if (!permissionResult.granted) {
+        Alert.alert('Permission Required', 'Please allow access to your photos to upload a profile image.');
         return;
       }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setNewAvatarUri(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
     }
+  };
 
-    setUsername(sanitizedUsername);
+  const handleSave = async () => {
+    setIsUploading(true);
+    try {
+      const trimmedDisplayName = displayName.trim() || initialDisplayName;
+      const trimmedDescription = description.trim();
+      const normalizedInitial = normalize(initialUsername);
+      const sanitizedUsername = normalize(username);
+      const hasUsernameChanged = sanitizedUsername !== normalizedInitial;
 
-    onSave({
-      displayName: trimmedDisplayName,
-      description: trimmedDescription,
-      avatarUrl: trimmedAvatarUrl,
-    });
+      if (hasUsernameChanged) {
+        const result = onAttemptUsernameChange(sanitizedUsername);
+        if (!result.success) {
+          setUsernameStatus('error');
+          setUsernameMessage(result.message ?? 'Unable to update username.');
+          setIsUploading(false);
+          return;
+        }
+      }
 
-    setUsernameMessage(null);
-    setUsernameStatus('idle');
-    onClose();
+      setUsername(sanitizedUsername);
+
+      // Upload new avatar if selected
+      let avatarStorageId: Id<"_storage"> | undefined;
+      if (newAvatarUri) {
+        try {
+          const uploadUrl = await generateUploadUrl();
+          const response = await fetch(newAvatarUri);
+          const blob = await response.blob();
+          
+          const uploadResult = await fetch(uploadUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': blob.type },
+            body: blob,
+          });
+
+          if (!uploadResult.ok) {
+            throw new Error('Failed to upload image');
+          }
+
+          const { storageId } = await uploadResult.json();
+          avatarStorageId = storageId;
+        } catch (error) {
+          console.error('Error uploading avatar:', error);
+          Alert.alert('Upload Error', 'Failed to upload profile image. Please try again.');
+          setIsUploading(false);
+          return;
+        }
+      }
+
+      const result = await onSave({
+        displayName: trimmedDisplayName,
+        description: trimmedDescription,
+        avatarStorageId,
+        username: sanitizedUsername,
+      });
+
+      if (!result.success) {
+        if (result.message) {
+          Alert.alert('Unable to update profile', result.message);
+        }
+        setIsUploading(false);
+        return;
+      }
+
+      setUsernameMessage(null);
+      setUsernameStatus('idle');
+      setIsUploading(false);
+      onClose();
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      Alert.alert('Error', 'Failed to save profile. Please try again.');
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -160,16 +251,21 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
             </View>
 
             <View style={styles.field}>
-              <Text style={[styles.label, { color: colors.mutedForeground }]}>Avatar URL</Text>
-              <TextInput
-                value={avatarUrl}
-                onChangeText={setAvatarUrl}
-                placeholder="https://"
-                placeholderTextColor={colors.mutedForeground}
-                style={[styles.input, { backgroundColor: colors.background, color: colors.foreground }]}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
+              <Text style={[styles.label, { color: colors.mutedForeground }]}>Profile Image</Text>
+              {(newAvatarUri || avatarUrl) && (
+                <Image
+                  source={{ uri: newAvatarUri || avatarUrl }}
+                  style={styles.avatarPreview}
+                />
+              )}
+              <Pressable
+                style={[styles.imagePicker, { backgroundColor: colors.secondary }]}
+                onPress={handlePickImage}
+              >
+                <Text style={[styles.imagePickerText, { color: colors.secondaryForeground }]}>
+                  {newAvatarUri || avatarUrl ? 'Change Image' : 'Upload Image'}
+                </Text>
+              </Pressable>
             </View>
           </ScrollView>
 
@@ -177,14 +273,20 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
             <Pressable
               style={[styles.actionButton, { backgroundColor: colors.secondary }]}
               onPress={onClose}
+              disabled={isUploading}
             >
               <Text style={[styles.actionLabel, { color: colors.secondaryForeground }]}>Cancel</Text>
             </Pressable>
             <Pressable
               style={[styles.actionButton, { backgroundColor: colors.primary }]}
               onPress={handleSave}
+              disabled={isUploading}
             >
-              <Text style={[styles.actionLabel, { color: colors.primaryForeground }]}>Save</Text>
+              {isUploading ? (
+                <ActivityIndicator color={colors.primaryForeground} />
+              ) : (
+                <Text style={[styles.actionLabel, { color: colors.primaryForeground }]}>Save</Text>
+              )}
             </Pressable>
           </View>
         </View>
@@ -239,6 +341,23 @@ const styles = StyleSheet.create({
   },
   multilineInput: {
     minHeight: 96,
+  },
+  avatarPreview: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignSelf: 'center',
+    marginBottom: spacing.sm,
+  },
+  imagePicker: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.medium,
+    alignItems: 'center',
+  },
+  imagePickerText: {
+    fontSize: fontSize.md,
+    fontFamily: 'SpaceMono_700Bold',
   },
   actions: {
     flexDirection: 'row',

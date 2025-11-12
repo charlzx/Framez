@@ -2,6 +2,7 @@
   "expo": {
     "name": "Framez",
     "slug": "Framez",
+    "owner": "charlzx",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,6 +17,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.charlzx.framez",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -28,6 +30,11 @@
     },
     "plugins": [
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "5e92c1b4-090f-4068-9e71-803763fd1b84"
+      }
+    }
   }
 }
