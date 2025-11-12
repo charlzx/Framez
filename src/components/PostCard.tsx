@@ -1,13 +1,14 @@
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Image,
   Pressable,
   useWindowDimensions,
   GestureResponderEvent,
+  ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Post } from '../types/post';
 import { spacing, fontSize, borderRadius } from '../constants/spacing';
@@ -40,6 +41,7 @@ const PostCardComponent: React.FC<PostCardProps> = ({
   const { width } = useWindowDimensions();
   const cardMaxWidth = Math.min(width - spacing.lg * 2, 720);
   const commentCount = post.comments?.length ?? post.replyCount ?? 0;
+  const [isImageLoading, setImageLoading] = useState(false);
 
   const primaryImage = post.media?.find((item) => item.type === 'image');
   const postImageUri = primaryImage?.url ?? post.imageUrl;
@@ -97,6 +99,9 @@ const PostCardComponent: React.FC<PostCardProps> = ({
           <Image
             source={{ uri: post.authorAvatar || AVATAR_PLACEHOLDER }}
             style={[styles.avatar, { borderColor: colors.border }]}
+            cachePolicy="memory-disk"
+            transition={150}
+            contentFit="cover"
           />
         </Pressable>
         <View style={styles.titleWrapper}>
@@ -163,11 +168,24 @@ const PostCardComponent: React.FC<PostCardProps> = ({
         ) : null}
 
         {postImageUri ? (
-          <Image
-            source={{ uri: postImageUri }}
-            accessibilityLabel={postImageAlt}
-            style={[styles.mediaImage, { borderColor: colors.border }]}
-          />
+          <View style={styles.imageContainer}>
+            <Image
+              source={{ uri: postImageUri }}
+              accessibilityLabel={postImageAlt}
+              style={[styles.mediaImage, { borderColor: colors.border }]}
+              contentFit="cover"
+              transition={200}
+              cachePolicy="memory-disk"
+              recyclingKey={post._id}
+              onLoadStart={() => setImageLoading(true)}
+              onLoadEnd={() => setImageLoading(false)}
+            />
+            {isImageLoading && (
+              <View style={styles.loadingOverlay}>
+                <ActivityIndicator size="large" color={colors.primary} />
+              </View>
+            )}
+          </View>
         ) : null}
       </Pressable>
 
@@ -296,12 +314,26 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     lineHeight: 18,
   },
-  mediaImage: {
+  imageContainer: {
+    position: 'relative',
     marginTop: spacing.md,
+  },
+  mediaImage: {
     borderRadius: borderRadius.large,
     borderWidth: 1,
     width: '100%',
     aspectRatio: 1.6,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: borderRadius.large,
   },
   footerRow: {
     flexDirection: 'row',

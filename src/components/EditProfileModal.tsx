@@ -10,15 +10,16 @@ import {
   Platform,
   ScrollView,
   Alert,
-  Image,
   ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { spacing, fontSize, borderRadius } from '../constants/spacing';
 import { useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
+import { optimizeImage, validateImage, generateThumbnail } from '../utils/imageOptimization';
 
 type EditProfileModalProps = {
   visible: boolean;
@@ -55,6 +56,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
   const [usernameMessage, setUsernameMessage] = useState<string | null>(null);
   const [usernameStatus, setUsernameStatus] = useState<'idle' | 'error'>('idle');
   const [isUploading, setIsUploading] = useState(false);
+  const [isOptimizingImage, setIsOptimizingImage] = useState(false);
   
   const generateUploadUrl = useMutation(api.users.generateUploadUrl);
 
@@ -95,15 +97,51 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
         mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.8,
+        quality: 1, // Get full quality, we'll optimize it ourselves
       });
 
       if (!result.canceled && result.assets[0]) {
-        setNewAvatarUri(result.assets[0].uri);
+        const selectedUri = result.assets[0].uri;
+
+        // Validate image
+        const validation = await validateImage(selectedUri);
+        if (!validation.isValid) {
+          Alert.alert('Invalid Image', validation.error || 'Please select a valid image.');
+          return;
+        }
+
+        // Show loading indicator
+        setIsOptimizingImage(true);
+
+        try {
+          // Optimize avatar (smaller size for profiles)
+          const optimized = await optimizeImage(selectedUri, {
+            maxWidth: 512,
+            maxHeight: 512,
+            quality: 0.85,
+            format: 'jpeg',
+          });
+
+          setNewAvatarUri(optimized.uri);
+
+          // Log optimization stats
+          if (optimized.compressionRatio && optimized.compressionRatio > 10) {
+            console.log(
+              `✅ Avatar optimized by ${optimized.compressionRatio.toFixed(1)}%`,
+              `(${optimized.originalSize}KB → ${optimized.optimizedSize}KB)`
+            );
+          }
+        } catch (error) {
+          Alert.alert('Optimization Failed', 'Failed to optimize image. Please try another image.');
+          console.error(error);
+        } finally {
+          setIsOptimizingImage(false);
+        }
       }
     } catch (error) {
       console.error('Error picking image:', error);
       Alert.alert('Error', 'Failed to pick image. Please try again.');
+      setIsOptimizingImage(false);
     }
   };
 
@@ -252,15 +290,26 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
 
             <View style={styles.field}>
               <Text style={[styles.label, { color: colors.mutedForeground }]}>Profile Image</Text>
-              {(newAvatarUri || avatarUrl) && (
+              {isOptimizingImage ? (
+                <View style={styles.avatarOptimizing}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                  <Text style={[styles.optimizingText, { color: colors.mutedForeground }]}>
+                    Optimizing...
+                  </Text>
+                </View>
+              ) : (newAvatarUri || avatarUrl) ? (
                 <Image
                   source={{ uri: newAvatarUri || avatarUrl }}
                   style={styles.avatarPreview}
+                  contentFit="cover"
+                  transition={200}
+                  cachePolicy="memory-disk"
                 />
-              )}
+              ) : null}
               <Pressable
                 style={[styles.imagePicker, { backgroundColor: colors.secondary }]}
                 onPress={handlePickImage}
+                disabled={isOptimizingImage}
               >
                 <Text style={[styles.imagePickerText, { color: colors.secondaryForeground }]}>
                   {newAvatarUri || avatarUrl ? 'Change Image' : 'Upload Image'}
@@ -348,6 +397,21 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     alignSelf: 'center',
     marginBottom: spacing.sm,
+  },
+  avatarOptimizing: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignSelf: 'center',
+    marginBottom: spacing.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  optimizingText: {
+    fontSize: fontSize.xs,
+    fontFamily: 'SpaceMono_700Bold',
+    marginTop: spacing.xs,
   },
   imagePicker: {
     paddingVertical: spacing.sm,

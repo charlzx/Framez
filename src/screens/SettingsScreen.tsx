@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Switch, Pressable, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import Constants from 'expo-constants';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { useSettingsStore } from '../store/settingsStore';
 import { spacing, fontSize, borderRadius } from '../constants/spacing';
+import { clearImageCache, getCacheSize, formatBytes } from '../utils/imageCache';
 
 export default function SettingsScreen() {
   const colors = useThemeColors();
@@ -16,6 +17,47 @@ export default function SettingsScreen() {
   const expoConfig = Constants.expoConfig ?? (Constants as any).manifest;
   const appVersion: string = (expoConfig?.version as string | undefined) ?? '0.0.0';
   const versionLabel = `v${appVersion}`;
+  const [cacheSize, setCacheSize] = useState<number>(0);
+  const [isLoadingCache, setIsLoadingCache] = useState(true);
+
+  useEffect(() => {
+    loadCacheSize();
+  }, []);
+
+  const loadCacheSize = async () => {
+    setIsLoadingCache(true);
+    try {
+      const size = await getCacheSize();
+      setCacheSize(size);
+    } catch (error) {
+      console.error('Failed to load cache size:', error);
+    } finally {
+      setIsLoadingCache(false);
+    }
+  };
+
+  const handleClearCache = async () => {
+    Alert.alert(
+      'Clear Image Cache',
+      'This will remove all cached images. They will be re-downloaded when needed.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear Cache',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await clearImageCache();
+              Alert.alert('Success', 'Image cache cleared successfully.');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to clear image cache. Please try again.');
+              console.error('Failed to clear cache:', error);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const handleLogout = () => {
     if (!isLoaded) {
@@ -61,6 +103,24 @@ export default function SettingsScreen() {
               thumbColor={themeMode === 'dark' ? colors.primaryForeground : colors.card}
             />
           </View>
+        </View>
+
+        <View style={[styles.section, { borderColor: colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Storage</Text>
+          <Pressable 
+            style={styles.row}
+            onPress={handleClearCache}
+            disabled={isLoadingCache}
+          >
+            <Ionicons name="trash-outline" size={20} color={colors.foreground} />
+            <View style={styles.rowContent}>
+              <Text style={[styles.rowTitle, { color: colors.foreground }]}>Clear image cache</Text>
+              <Text style={[styles.rowSubtitle, { color: colors.mutedForeground }]}>
+                {isLoadingCache ? 'Loading...' : 'Remove cached images to free up space'}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
+          </Pressable>
         </View>
 
         <View style={[styles.section, { borderColor: colors.border }]}>

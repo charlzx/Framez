@@ -3,77 +3,6 @@ import { ThemeMode } from '../constants/colors';
 import { Post } from '../types/post';
 import { User } from '../types/user';
 
-const CURRENT_USER_ID = 'user-current';
-const now = Date.now();
-
-const mockUsers: User[] = [
-  {
-    _id: CURRENT_USER_ID,
-    clerkId: 'clerk-charlz',
-    email: 'charlz@framez.ng',
-    name: 'Charlz One',
-    displayName: 'Charlz',
-    username: 'one',
-    avatarUrl:
-      'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=facearea&w=256&h=256&q=80',
-    bio: 'builder @framez , playlist curator',
-    followersCount: 5402,
-    followingCount: 318,
-  },
-  {
-    _id: 'user-ada',
-    clerkId: 'clerk-ada',
-    email: 'ada@naijahub.io',
-    name: 'Ada Obi',
-    displayName: 'Ada Obi',
-    username: 'adaobi',
-    avatarUrl:
-      'https://images.unsplash.com/photo-1521119989659-a83eee488004?auto=format&fit=facearea&w=256&h=256&q=80',
-    bio: 'Backend engineer building inclusive fintech infra for campus vendors in Yaba.',
-    followersCount: 12400,
-    followingCount: 512,
-  },
-  {
-    _id: 'user-segun',
-    clerkId: 'clerk-segun',
-    email: 'segun@devshop.africa',
-    name: 'Segun Martins',
-    displayName: 'Segun Martins',
-    username: 'segun.dev',
-    avatarUrl:
-      'https://images.unsplash.com/photo-1521579971123-1192931a1452?auto=format&fit=facearea&w=256&h=256&q=80',
-    bio: 'Community organiser and mobile engineer spinning up hackathon squads in Abuja.',
-    followersCount: 8721,
-    followingCount: 289,
-  },
-  {
-    _id: 'user-toke',
-    clerkId: 'clerk-toke',
-    email: 'toke@creatives.ng',
-    name: 'Toke Amao',
-    displayName: 'Toke Amao',
-    username: 'toke',
-    avatarUrl:
-      'https://images.unsplash.com/photo-1544723795-3fb6469f5b39?auto=format&fit=facearea&w=256&h=256&q=80',
-    bio: 'Brand storyteller in Ibadan blending afrobeats aesthetics with product launches.',
-    followersCount: 19302,
-    followingCount: 654,
-  },
-  {
-    _id: 'user-kamsi',
-    clerkId: 'clerk-kamsi',
-    email: 'kamsi@buildclub.ng',
-    name: 'Kamsi Udo',
-    displayName: 'Kamsi Udo',
-    username: 'kamsi.codes',
-    avatarUrl:
-      'https://images.unsplash.com/photo-1520869562399-8804d0d91dc0?auto=format&fit=facearea&w=256&h=256&q=80',
-    bio: 'AR tinkerer and community mentor experimenting with campus creator tools.',
-    followersCount: 6458,
-    followingCount: 402,
-  },
-];
-
 interface NotificationItem {
   id: string;
   type: 'like' | 'reply' | 'follow' | 'system';
@@ -122,13 +51,11 @@ const normalizeUsername = (value: string) => value.trim().toLowerCase();
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   themeMode: 'light',
-  displayName: mockUsers[0]?.displayName ?? 'Framez User',
-  username: mockUsers[0]?.username ?? 'framezer',
-  description: mockUsers[0]?.bio ?? 'Exploring creative ways to bring stories to life.',
-  avatarUrl:
-    mockUsers[0]?.avatarUrl ??
-    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=facearea&w=256&h=256&q=80',
-  currentUserId: CURRENT_USER_ID,
+  displayName: 'Framez User',
+  username: 'framezer',
+  description: 'Exploring creative ways to bring stories to life.',
+  avatarUrl: '',
+  currentUserId: '',
   posts: [],
   setPosts: (posts) => set({ posts }),
   removePost: (postId) =>
@@ -234,8 +161,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   notifications: [],
   setNotifications: (notifications) => set({ notifications }),
   recentSearches: [],
-  people: mockUsers,
-  takenUsernames: mockUsers.map((user) => normalizeUsername(user.username ?? user.name)),
+  people: [],
+  takenUsernames: [],
   toggleTheme: () =>
     set((state) => ({
       themeMode: state.themeMode === 'light' ? 'dark' : 'light',

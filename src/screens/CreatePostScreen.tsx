@@ -7,8 +7,9 @@ import {
   Pressable,
   Alert,
   ScrollView,
-  Image,
+  ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -22,6 +23,7 @@ import { useThemeColors } from '../hooks/useThemeColors';
 import { useSettingsStore } from '../store/settingsStore';
 import { spacing, fontSize, borderRadius } from '../constants/spacing';
 import type { HomeStackParamList } from '../navigation/HomeStack';
+import { optimizeImage, validateImage } from '../utils/imageOptimization';
 
 export default function CreatePostScreen() {
   const colors = useThemeColors();
@@ -38,6 +40,7 @@ export default function CreatePostScreen() {
   const [content, setContent] = useState('');
   const [frameInputs, setFrameInputs] = useState<string[]>(['']);
   const [isSubmitting, setSubmitting] = useState(false);
+  const [isOptimizing, setIsOptimizing] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const canPublish = useMemo(
@@ -62,12 +65,48 @@ export default function CreatePostScreen() {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: false,
-      quality: 0.85,
+      allowsEditing: true,
+      aspect: [16, 10],
+      quality: 1, // Get full quality, we'll optimize it ourselves
     });
 
-    if (!result.canceled && result.assets?.length) {
-      setSelectedImage(result.assets[0]?.uri ?? null);
+    if (!result.canceled && result.assets?.[0]) {
+      const selectedUri = result.assets[0].uri;
+
+      // Validate image
+      const validation = await validateImage(selectedUri);
+      if (!validation.isValid) {
+        Alert.alert('Invalid Image', validation.error || 'Please select a valid image.');
+        return;
+      }
+
+      // Show loading indicator
+      setIsOptimizing(true);
+
+      try {
+        // Optimize image
+        const optimized = await optimizeImage(selectedUri, {
+          maxWidth: 1080,
+          maxHeight: 1080,
+          quality: 0.8,
+          format: 'jpeg',
+        });
+
+        setSelectedImage(optimized.uri);
+
+        // Optional: Show optimization stats to user
+        if (optimized.compressionRatio && optimized.compressionRatio > 10) {
+          console.log(
+            `✅ Image optimized by ${optimized.compressionRatio.toFixed(1)}%`,
+            `(${optimized.originalSize}KB → ${optimized.optimizedSize}KB)`
+          );
+        }
+      } catch (error) {
+        Alert.alert('Optimization Failed', 'Failed to optimize image. Please try another image.');
+        console.error(error);
+      } finally {
+        setIsOptimizing(false);
+      }
     }
   };
 
@@ -196,11 +235,27 @@ export default function CreatePostScreen() {
 
         <View style={styles.field}>
           <Text style={[styles.label, { color: colors.mutedForeground }]}>Image</Text>
-          {selectedImage ? (
+          {isOptimizing ? (
             <View
               style={[styles.imagePreviewContainer, { borderColor: colors.border, backgroundColor: colors.card }]}
             >
-              <Image source={{ uri: selectedImage }} style={styles.imagePreview} />
+              <View style={styles.optimizingContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={[styles.optimizingText, { color: colors.mutedForeground }]}>
+                  Optimizing image...
+                </Text>
+              </View>
+            </View>
+          ) : selectedImage ? (
+            <View
+              style={[styles.imagePreviewContainer, { borderColor: colors.border, backgroundColor: colors.card }]}
+            >
+              <Image
+                source={{ uri: selectedImage }}
+                style={styles.imagePreview}
+                contentFit="cover"
+                transition={200}
+              />
               <Pressable
                 style={[styles.removeImageButton, { borderColor: colors.border }]}
                 onPress={handleRemoveImage}
@@ -338,6 +393,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: borderRadius.large,
     overflow: 'hidden',
+  },
+  optimizingContainer: {
+    width: '100%',
+    height: 240,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  optimizingText: {
+    fontSize: fontSize.sm,
+    fontFamily: 'SpaceMono_700Bold',
+    marginTop: spacing.sm,
   },
   imagePreview: {
     width: '100%',
