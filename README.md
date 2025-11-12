@@ -1,4 +1,4 @@
-# Framez 📱
+# Framez
 
 A modern mobile social application built with React Native that allows users to share posts with text and images. Framez demonstrates real-time data handling, secure authentication, and responsive mobile UI/UX.
 
@@ -139,16 +139,8 @@ npm run android
 
 ## 🎨 Design System
 
-### Color Palette
-- **Primary**: `#000000` (Black)
-- **Secondary**: `#FFFFFF` (White)
-- **Accent**: `#0095F6` (Blue)
-- **Text**: `#262626` (Dark Gray)
-- **Border**: `#DBDBDB` (Light Gray)
-- **Background**: `#FAFAFA` (Off White)
-
 ### Typography
-- **System Fonts**: Default platform fonts
+- **System Fonts**: Space Mono
 - **Font Sizes**: 12px, 14px, 16px, 20px, 24px
 - **Font Weights**: 400 (Regular), 600 (Semi-Bold), 700 (Bold)
 
@@ -227,9 +219,7 @@ npm install
 
 ## 📄 License
 
-This project is created for educational purposes as part of a Frontend Stage 4 assessment.
+This project is created for educational purposes as part of a HNG Frontend Stage 4 assessment.
 
 ## 👨‍💻 Author
-
-**charlzx**
-- GitHub: [@charlzx](https://github.com/charlzx)
+GitHub: [@charlzx](https://github.com/charlzx)
