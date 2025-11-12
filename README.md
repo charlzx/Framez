@@ -100,14 +100,25 @@ This will:
 
 ### 5. Configure Environment Variables
 
-Create a `.env` file in the root directory:
+Create a `.env.local` file in the root directory:
 
 ```env
+# For Development
+CONVEX_DEPLOYMENT=dev:your-dev-deployment
 EXPO_PUBLIC_CONVEX_URL=your_convex_deployment_url
-EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_test_key
 ```
 
-**Important**: Never commit the `.env` file to version control!
+**For Production**: Use `.env.production` file with production credentials:
+
+```env
+# For Production
+CONVEX_DEPLOYMENT=prod:your-prod-deployment
+EXPO_PUBLIC_CONVEX_URL=your_production_convex_url
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_your_clerk_production_key
+```
+
+**Important**: Never commit environment files to version control!
 
 ### 6. Start the Development Server
 
@@ -169,15 +180,40 @@ npm run android
 
 ## 📦 Building for Production
 
-### Create Production Build
+### Deploy to Production
+
+#### 1. Deploy Convex Backend to Production
+```bash
+# Deploy your Convex functions to production
+npx convex deploy
+
+# This will output your production URL:
+# ✔ Deployed Convex functions to https://your-production-deployment.convex.cloud
+```
+
+#### 2. Set Up Production Clerk Instance
+1. Go to [Clerk Dashboard](https://dashboard.clerk.com/)
+2. Create a production instance (or switch to production mode)
+3. Get your production publishable key (starts with `pk_live_...`)
+4. Update `.env.production` with the production key
+
+#### 3. Build Production App with EAS
 
 ```bash
-# For Android
-expo build:android
+# Install EAS CLI
+npm install -g eas-cli
 
-# For iOS
-expo build:ios
+# Login to your Expo account
+eas login
+
+# Build for Android
+eas build --platform android --profile production
+
+# Build for iOS
+eas build --platform ios --profile production
 ```
+
+The production build will automatically use the production Convex URL configured in `eas.json`.
 
 ## 📚 Key Learnings
 
