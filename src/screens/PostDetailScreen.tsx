@@ -88,11 +88,15 @@ export default function PostDetailScreen() {
 				style: 'destructive',
 				onPress: async () => {
 					try {
+						console.log('Deleting post:', post._id, 'by user:', currentUserId);
 						await deletePostMutation({ id: post._id as Id<'posts'>, requesterId: currentUserId });
+						console.log('Post deleted from Convex, removing from local state');
 						removePost(post._id);
+						console.log('Post removed from local state');
 						setOptionsVisible(false);
 						navigation.goBack();
 					} catch (error) {
+						console.error('Delete post error:', error);
 						Alert.alert(
 							'Unable to delete',
 							error instanceof Error ? error.message : 'Please try again.'

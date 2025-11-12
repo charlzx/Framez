@@ -111,8 +111,10 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   }, []);
 
   const handleMoreOptions = useCallback((postId: string) => {
+    console.log('handleMoreOptions called with postId:', postId);
     setSelectedPostId(postId);
     setOptionsVisible(true);
+    console.log('Options modal should now be visible');
   }, []);
 
   const handleOpenPost = useCallback(
@@ -130,58 +132,108 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   );
 
   const handleCloseOptions = useCallback(() => {
+    console.log('handleCloseOptions called');
     setOptionsVisible(false);
     setSelectedPostId(null);
   }, []);
 
-  const confirmDelete = useCallback(
-    (postId: string) => {
+  // Delete post handler - soft deletes on the server and removes it locally
+  const handleDeletePost = useCallback(
+    async (postId: string) => {
+      console.log('[DELETE] Starting delete flow for post:', postId);
+
       if (!currentUserId) {
+        console.log('[DELETE] Error: No current user');
         Alert.alert('Unable to delete', 'You need to be signed in.');
         return;
       }
 
-      Alert.alert('Delete this frame?', 'This will remove the frame for everyone and cannot be undone.', [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deletePostMutation({ id: postId as Id<'posts'>, requesterId: currentUserId });
-              removePost(postId);
-            } catch (error) {
-              Alert.alert('Unable to delete', error instanceof Error ? error.message : 'Please try again.');
-            }
-          },
-        },
-      ]);
+      // Close the options modal immediately so the UI responds
+      console.log('[DELETE] Closing options modal');
+      setOptionsVisible(false);
+
+      try {
+        console.log('[DELETE] Calling Convex deletePost mutation');
+        await deletePostMutation({ id: postId as Id<'posts'>, requesterId: currentUserId });
+        console.log('[DELETE] Successfully blanked post on server');
+
+        removePost(postId);
+        console.log('[DELETE] Removed post locally');
+
+        setSelectedPostId(null);
+        console.log('[DELETE] Delete flow completed');
+      } catch (error) {
+        console.error('[DELETE] Error during deletion:', error);
+        Alert.alert('Unable to delete', error instanceof Error ? error.message : 'Please try again.');
+        setSelectedPostId(null);
+      }
     },
     [currentUserId, deletePostMutation, removePost]
   );
 
   const selectedPost = useMemo(
-    () => (selectedPostId ? posts.find((post) => post._id === selectedPostId) ?? null : null),
-    [posts, selectedPostId]
+    () => {
+      const post = selectedPostId ? posts.find((post) => post._id === selectedPostId) ?? null : null;
+      console.log('selectedPost memo:', { selectedPostId, foundPost: !!post, postAuthor: post?.authorId, currentUserId });
+      return post;
+    },
+    [posts, selectedPostId, currentUserId]
   );
 
+  // Hide post handler - rebuilt to match delete flow
+  const handleHidePost = useCallback(
+    async (postId: string, authorId: string) => {
+      console.log('[HIDE] Starting hide flow for post:', postId);
+      
+      // Close the options modal immediately
+      console.log('[HIDE] Closing options modal');
+      setOptionsVisible(false);
+      
+      try {
+        console.log('[HIDE] Calling hidePostOnServer');
+        await hidePostOnServer(postId, authorId);
+        console.log('[HIDE] Successfully hidden post');
+        
+        // Clear selected post
+        setSelectedPostId(null);
+        console.log('[HIDE] Hide flow completed successfully');
+        
+      } catch (error) {
+        console.error('[HIDE] Error during hide:', error);
+        Alert.alert(
+          'Unable to hide',
+          error instanceof Error ? error.message : 'Please try again.'
+        );
+        setSelectedPostId(null);
+      }
+    },
+    [hidePostOnServer]
+  );
+
+  // Handler called when hide option is selected from modal
   const handleHideSelected = useCallback(() => {
+    console.log('[HIDE] handleHideSelected called');
+    
     if (!selectedPostId || !selectedPost) {
+      console.log('[HIDE] Error: Missing selectedPostId or selectedPost');
       return;
     }
 
-    hidePostOnServer(selectedPostId, selectedPost.authorId).catch((error) => {
-      Alert.alert('Unable to hide', error instanceof Error ? error.message : 'Please try again.');
-    });
-  }, [hidePostOnServer, selectedPost, selectedPostId]);
+    // Call the hide handler
+    handleHidePost(selectedPostId, selectedPost.authorId);
+  }, [selectedPostId, selectedPost, handleHidePost]);
 
+  // Handler called when delete option is selected from modal
   const handleDeleteSelected = useCallback(() => {
+    console.log('[DELETE] handleDeleteSelected called, selectedPostId:', selectedPostId);
+    
     if (!selectedPostId) {
+      console.log('[DELETE] Error: No selectedPostId');
       return;
     }
 
-    confirmDelete(selectedPostId);
-  }, [confirmDelete, selectedPostId]);
+    void handleDeletePost(selectedPostId);
+  }, [selectedPostId, handleDeletePost]);
 
   const renderHeader = useCallback(() => (
     <View style={styles.listHeader}>

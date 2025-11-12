@@ -77,9 +77,16 @@ export default function UserProfileScreen() {
 					style: 'destructive',
 					onPress: async () => {
 						try {
+							console.log('Deleting post:', postId, 'by user:', currentUserId);
 							await deletePostMutation({ id: postId as Id<'posts'>, requesterId: currentUserId });
+							console.log('Post deleted from Convex, removing from local state');
 							removePost(postId);
+							console.log('Post removed from local state');
+							// Close the options modal
+							setOptionsVisible(false);
+							setSelectedPostId(null);
 						} catch (error) {
+							console.error('Delete post error:', error);
 							Alert.alert(
 								'Unable to delete',
 								error instanceof Error ? error.message : 'Please try again.'

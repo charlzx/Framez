@@ -36,7 +36,7 @@ interface SettingsState {
   takenUsernames: string[];
   toggleTheme: () => void;
   setThemeMode: (mode: ThemeMode) => void;
-  updateProfile: (payload: Partial<Pick<SettingsState, 'displayName' | 'description' | 'avatarUrl'>>) => void;
+  updateProfile: (payload: Partial<Pick<SettingsState, 'displayName' | 'description' | 'avatarUrl' | 'username'>>) => void;
   attemptUsernameChange: (desired: string) => { success: boolean; message?: string };
   toggleLike: (postId: string) => void;
   addRecentSearch: (term: string) => void;
@@ -57,7 +57,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   avatarUrl: '',
   currentUserId: '',
   posts: [],
-  setPosts: (posts) => set({ posts }),
+  setPosts: (posts) =>
+    set({
+      posts: posts.filter((post) => post.content.trim().length > 0),
+    }),
   removePost: (postId) =>
     set((state) => ({
       posts: state.posts.filter((post) => post._id !== postId),
@@ -172,12 +175,14 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     set((state) => ({
       displayName: payload.displayName ?? state.displayName,
       description: payload.description ?? state.description,
+      username: payload.username ?? state.username,
       avatarUrl: payload.avatarUrl ?? state.avatarUrl,
       people: state.people.map((person) =>
         person.clerkId === state.currentUserId
           ? {
               ...person,
               displayName: payload.displayName ?? state.displayName,
+              username: payload.username ?? person.username,
               bio: payload.description ?? state.description,
               avatarUrl: payload.avatarUrl ?? state.avatarUrl,
             }

@@ -49,13 +49,18 @@ const buildPayload = (params: {
   });
 
   const hasProfileDifferences = (doc: Doc<'users'>, payload: ReturnType<typeof buildPayload>): boolean => {
+    const avatarMismatch =
+      payload.avatarUrl !== undefined &&
+      !doc.avatarStorageId &&
+      doc.avatarUrl !== payload.avatarUrl;
+
     return (
       doc.email !== payload.email ||
       doc.name !== payload.name ||
       (payload.displayName !== undefined && doc.displayName !== payload.displayName) ||
       (payload.username !== undefined && doc.username !== payload.username) ||
       (payload.bio !== undefined && doc.bio !== payload.bio) ||
-      (payload.avatarUrl !== undefined && doc.avatarUrl !== payload.avatarUrl)
+      avatarMismatch
     );
   };
 

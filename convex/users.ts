@@ -196,7 +196,15 @@ export const updateProfile = mutation({
       }
     }
 
-    return { success: true };
+    return {
+      success: true,
+      profile: {
+        displayName: nextDisplayName,
+        username: nextUsername ?? undefined,
+        bio: nextBio ?? undefined,
+        avatarUrl: nextAvatar ?? undefined,
+      },
+    };
   },
 });
 

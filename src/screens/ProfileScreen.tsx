@@ -103,9 +103,16 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
           style: 'destructive',
           onPress: async () => {
             try {
+              console.log('Deleting post:', postId, 'by user:', currentUserId);
               await deletePostMutation({ id: postId as Id<'posts'>, requesterId: currentUserId });
+              console.log('Post deleted from Convex, removing from local state');
               removePost(postId);
+              console.log('Post removed from local state');
+              // Close the options modal
+              setOptionsVisible(false);
+              setSelectedPostId(null);
             } catch (error) {
+              console.error('Delete post error:', error);
               Alert.alert(
                 'Unable to delete',
                 error instanceof Error ? error.message : 'Please try again.'
@@ -127,13 +134,13 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
   }, [confirmDelete, selectedPostId]);
 
   const handleSaveProfile = useCallback(
-    async ({ displayName: nextDisplayName, description: nextDescription, avatarStorageId, username: nextUsername }: { displayName: string; description: string; avatarStorageId?: Id<"_storage">; username: string }) => {
+    async ({ displayName: nextDisplayName, description: nextDescription, avatarStorageId, username: nextUsername }: { displayName: string; description: string; avatarStorageId?: Id<'_storage'>; username: string }) => {
       if (!currentUserId) {
         return { success: false, message: 'You need to be signed in to update your profile.' };
       }
 
       try {
-        await updateProfileMutation({
+        const result = await updateProfileMutation({
           clerkId: currentUserId,
           displayName: nextDisplayName,
           username: nextUsername,
@@ -141,10 +148,20 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
           avatarStorageId,
         });
 
-        // Note: avatarUrl will be resolved by backend, local state will be updated by hydrator
+        if (!result.success) {
+          return {
+            success: false,
+            message: 'Unable to update profile.',
+          };
+        }
+
+        const { profile } = result;
+
         updateProfile({
-          displayName: nextDisplayName,
-          description: nextDescription,
+          displayName: profile.displayName ?? nextDisplayName,
+          description: profile.bio ?? nextDescription,
+          username: profile.username ?? nextUsername,
+          avatarUrl: profile.avatarUrl,
         });
 
         return { success: true };

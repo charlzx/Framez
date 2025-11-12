@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import type { Doc } from "./_generated/dataModel";
 
 // Create a new post
 export const create = mutation({
@@ -77,8 +78,11 @@ export const getAll = query({
       .withIndex("by_timestamp")
       .order("desc")
       .collect();
+
+    const visiblePosts = posts.filter((post) => post.content.trim().length > 0);
+
     return await Promise.all(
-      posts.map(async (post) => ({
+      visiblePosts.map(async (post) => ({
         ...post,
         imageUrl: post.imageStorageId
           ? (await ctx.storage.getUrl(post.imageStorageId)) ?? post.imageUrl ?? undefined
@@ -97,8 +101,11 @@ export const getByUser = query({
       .withIndex("by_author", (q) => q.eq("authorId", args.authorId))
       .order("desc")
       .collect();
+
+    const visiblePosts = posts.filter((post) => post.content.trim().length > 0);
+
     return await Promise.all(
-      posts.map(async (post) => ({
+      visiblePosts.map(async (post) => ({
         ...post,
         imageUrl: post.imageStorageId
           ? (await ctx.storage.getUrl(post.imageStorageId)) ?? post.imageUrl ?? undefined
@@ -116,6 +123,10 @@ export const getById = query({
     if (!post) {
       return null;
     }
+
+     if (post.content.trim().length === 0) {
+       return null;
+     }
 
     const imageUrl = post.imageStorageId
       ? (await ctx.storage.getUrl(post.imageStorageId)) ?? post.imageUrl ?? undefined
@@ -166,7 +177,19 @@ export const deletePost = mutation({
       await ctx.db.delete(entry._id);
     }
 
-    await ctx.db.delete(args.id);
+    const blankPatch: Partial<Doc<"posts">> = {
+      content: "",
+      imageUrl: "",
+      imageStorageId: undefined,
+      media: [],
+      frames: [],
+      frameCount: undefined,
+      likeCount: 0,
+      replyCount: 0,
+      comments: [],
+    };
+
+    await ctx.db.patch(args.id, blankPatch);
   },
 });
 

@@ -105,7 +105,7 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        <View style={[styles.section, { borderColor: colors.border }]}>
+        {/* <View style={[styles.section, { borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Storage</Text>
           <Pressable 
             style={styles.row}
@@ -121,7 +121,7 @@ export default function SettingsScreen() {
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
           </Pressable>
-        </View>
+        </View> */}
 
         <View style={[styles.section, { borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>About Framez</Text>

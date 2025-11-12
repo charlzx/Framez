@@ -23,6 +23,19 @@ const PostOptionsModal: React.FC<PostOptionsModalProps> = ({
 }) => {
   const colors = useThemeColors();
 
+  // Debug logging
+  React.useEffect(() => {
+    if (visible) {
+      console.log('PostOptionsModal visible:', {
+        visible,
+        canHide,
+        canDelete,
+        hasOnHide: !!onHide,
+        hasOnDelete: !!onDelete,
+      });
+    }
+  }, [visible, canHide, canDelete, onHide, onDelete]);
+
   return (
     <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
       <View style={styles.overlay}>
@@ -39,11 +52,12 @@ const PostOptionsModal: React.FC<PostOptionsModalProps> = ({
               style={styles.optionRow}
               accessibilityRole="button"
               onPress={() => {
-                onClose();
-                // Small delay to let modal close before action
-                setTimeout(() => {
-                  onHide();
-                }, 100);
+                console.log('Hide button pressed in PostOptionsModal');
+                // Don't call onClose here - let the parent handle closing after hiding
+                // onClose(); // REMOVED
+                // Small delay removed - call immediately
+                console.log('Calling onHide callback');
+                onHide();
               }}
             >
               <Ionicons name="eye-off-outline" size={20} color={colors.mutedForeground} />
@@ -58,11 +72,12 @@ const PostOptionsModal: React.FC<PostOptionsModalProps> = ({
               style={styles.optionRow}
               accessibilityRole="button"
               onPress={() => {
-                onClose();
-                // Small delay to let modal close before showing alert
-                setTimeout(() => {
-                  onDelete();
-                }, 100);
+                console.log('Delete button pressed in PostOptionsModal');
+                // Don't call onClose here - let the parent handle closing after deletion
+                // onClose(); // REMOVED
+                // Small delay removed - call immediately
+                console.log('Calling onDelete callback');
+                onDelete();
               }}
             >
               <Ionicons name="trash-outline" size={20} color={colors.destructive} />
